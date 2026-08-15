@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AES Image Encryption Visualizer — ECB Penguin Flaw Demo</title>
+  <meta name="description" content="Interactive visualizer demonstrating why cipher mode matters by comparing naive AES-ECB pattern leakage against secure AES-GCM visual static.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="header-content">
+        <div class="title-group">
+          <div class="logo-icon">🔒</div>
+          <div>
+            <h1>AES Image Encryption Visualizer</h1>
+            <p class="subtitle">Demonstrating why cipher <em>mode</em> matters — Naive AES-ECB vs Secure AES-GCM</p>
+          </div>
+        </div>
+        <div class="header-badges">
+          <span class="badge badge-ecb">⚠️ ECB Pattern Leak</span>
+          <span class="badge badge-gcm">🛡️ GCM Secure Static</span>
+          <span class="badge badge-tech">Web Crypto API</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Control Bar -->
+    <section class="control-panel">
+      <!-- Sample & Upload Controls -->
+      <div class="control-group">
+        <label class="group-label">1. Select or Upload Image</label>
+        <div class="sample-buttons">
+          <button class="btn btn-sample active" data-sample="shield" id="btn-sample-shield">
+            <span class="btn-icon">🛡️</span> Shield & Key
+          </button>
+          <button class="btn btn-sample" data-sample="penguin" id="btn-sample-penguin">
+            <span class="btn-icon">🐧</span> ECB Penguin
+          </button>
+          <button class="btn btn-sample" data-sample="target" id="btn-sample-target">
+            <span class="btn-icon">🎯</span> Target Logo
+          </button>
+          <label for="image-upload" class="btn btn-upload" id="label-upload">
+            <span class="btn-icon">📁</span> Upload Custom Image
+            <input type="file" id="image-upload" accept="image/*">
+          </label>
+        </div>
+      </div>
+
+      <!-- AES Key & Encryption Actions -->
+      <div class="control-group">
+        <label class="group-label">2. Encryption Key & Execution</label>
+        <div class="key-action-row">
+          <div class="key-input-wrapper">
+            <span class="key-label">128-bit AES Key (Hex):</span>
+            <input type="text" id="aes-key-hex" value="2b7e151628aed2a6abf7158809cf4f3c" maxlength="32" spellcheck="false">
+            <button class="btn btn-icon-only" id="btn-gen-key" title="Generate New Random Key">🎲</button>
+          </div>
+          <div class="action-buttons">
+            <button class="btn btn-primary" id="btn-encrypt">
+              <span class="btn-icon">⚡</span> Encrypt Image
+            </button>
+            <button class="btn btn-success" id="btn-decrypt" disabled>
+              <span class="btn-icon">🔓</span> Decrypt & Verify
+            </button>
+            <button class="btn btn-outline" id="btn-reset">
+              <span class="btn-icon">🔄</span> Reset
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Notification Bar -->
+    <div id="status-banner" class="status-banner banner-info">
+      <span class="banner-icon">ℹ️</span>
+      <span id="status-text">Sample image loaded. Click <strong>"Encrypt Image"</strong> to run AES-ECB and AES-GCM mode comparisons.</span>
+    </div>
+
+    <!-- Three-Panel Visualizer Grid -->
+    <main class="visualizer-grid">
+      <!-- Panel 1: Original Image -->
+      <div class="panel panel-original">
+        <div class="panel-header">
+          <div class="panel-title-wrapper">
+            <span class="panel-number">1</span>
+            <h2>Original Image</h2>
+          </div>
+          <span class="panel-meta" id="meta-original">200 × 200 px</span>
+        </div>
+        <div class="canvas-wrapper">
+          <canvas id="canvas-original" width="200" height="200"></canvas>
+          <div class="canvas-overlay" id="overlay-original">
+            <span class="overlay-badge">Plaintext Data</span>
+          </div>
+        </div>
+        <div class="panel-caption">
+          <p class="caption-title">Source Image (Plaintext RGBA)</p>
+          <p class="caption-desc">
+            Large uniform color regions contain identical 16-byte pixel block patterns (4 RGBA pixels per block).
+          </p>
+        </div>
+        <div class="panel-footer-stats">
+          <span>Raw Size: <strong id="stat-orig-size">160,000 B</strong></span>
+          <span>Entropy: <strong id="stat-orig-entropy">Low (Structured)</strong></span>
+        </div>
+      </div>
+
+      <!-- Panel 2: AES-ECB Weak Mode -->
+      <div class="panel panel-ecb">
+        <div class="panel-header">
+          <div class="panel-title-wrapper">
+            <span class="panel-number">2</span>
+            <h2>Encrypted (AES-ECB)</h2>
+          </div>
+          <span class="panel-status-tag tag-weak">⚠️ Weak Mode</span>
+        </div>
+        <div class="canvas-wrapper">
+          <canvas id="canvas-ecb" width="200" height="200"></canvas>
+          <div class="canvas-placeholder" id="placeholder-ecb">
+            <span class="placeholder-icon">⏳</span>
+            <span>Awaiting Encryption</span>
+          </div>
+        </div>
+        <div class="panel-caption">
+          <p class="caption-title">Notice the Outline / Leak</p>
+          <p class="caption-desc">
+            <strong>Security Flaw:</strong> Identical pixel blocks always encrypt to identical ciphertext blocks. Flat background areas map to a repeating tile pattern, leaking image structure!
+          </p>
+        </div>
+        <div class="panel-footer-stats">
+          <span>Block Chaining: <strong>None (ECB)</strong></span>
+          <span>Leak Status: <strong class="text-danger" id="stat-ecb-leak">Pattern Leaked!</strong></span>
+        </div>
+      </div>
+
+      <!-- Panel 3: AES-GCM Strong Mode -->
+      <div class="panel panel-gcm">
+        <div class="panel-header">
+          <div class="panel-title-wrapper">
+            <span class="panel-number">3</span>
+            <h2>Encrypted (AES-GCM)</h2>
+          </div>
+          <span class="panel-status-tag tag-strong">🛡️ Secure Mode</span>
+        </div>
+        <div class="canvas-wrapper">
+          <canvas id="canvas-gcm" width="200" height="200"></canvas>
+          <div class="canvas-placeholder" id="placeholder-gcm">
+            <span class="placeholder-icon">⏳</span>
+            <span>Awaiting Encryption</span>
+          </div>
+        </div>
+        <div class="panel-caption">
+          <p class="caption-title">True Statistical Randomness</p>
+          <p class="caption-desc">
+            <strong>Secure Cipher Mode:</strong> Uses a 96-bit unique IV (Initialization Vector) + Counter mode + Auth Tag. Identical pixel blocks encrypt to completely different pseudo-random bytes.
+          </p>
+        </div>
+        <div class="panel-footer-stats">
+          <span>Auth Tag: <strong>16 Bytes</strong></span>
+          <span>Leak Status: <strong class="text-success" id="stat-gcm-leak">Zero Structure</strong></span>
+        </div>
+      </div>
+    </main>
+
+    <!-- Decryption Verification View (Hidden until decrypted) -->
+    <section id="decryption-section" class="decryption-section hidden">
+      <div class="section-title-row">
+        <h2>🔓 Decryption Verification & Bit-Exact Comparison</h2>
+        <span class="verify-badge" id="verify-badge">100% Bit-Exact Match</span>
+      </div>
+      <div class="decrypt-grid">
+        <!-- Decrypted ECB Panel -->
+        <div class="panel decrypt-panel">
+          <h3>Decrypted ECB Image</h3>
+          <div class="canvas-wrapper">
+            <canvas id="canvas-dec-ecb" width="200" height="200"></canvas>
+          </div>
+          <p class="decrypt-status" id="status-dec-ecb">Match: <strong class="text-success">Exact Match (0 byte diff)</strong></p>
+        </div>
+
+        <!-- Decrypted GCM Panel -->
+        <div class="panel decrypt-panel">
+          <h3>Decrypted GCM Image</h3>
+          <div class="canvas-wrapper">
+            <canvas id="canvas-dec-gcm" width="200" height="200"></canvas>
+          </div>
+          <p class="decrypt-status" id="status-dec-gcm">Match: <strong class="text-success">Exact Match (0 byte diff)</strong></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Pixel Block Inspector Drawer -->
+    <section class="inspector-section">
+      <div class="inspector-header">
+        <div class="inspector-title">
+          <span class="inspector-icon">🔍</span>
+          <h3>Interactive Pixel & Block Byte Inspector</h3>
+        </div>
+        <span class="inspector-hint">Hover mouse over any image panel above to inspect raw RGBA bytes</span>
+      </div>
+      <div class="inspector-content" id="inspector-content">
+        <div class="inspect-card">
+          <span class="card-label">Hover Coordinate</span>
+          <span class="card-value" id="inspect-coords">X: --, Y: -- (Block #--)</span>
+        </div>
+        <div class="inspect-card">
+          <span class="card-label">Original RGBA (Hex)</span>
+          <span class="card-value code-val" id="inspect-orig-hex">#------</span>
+        </div>
+        <div class="inspect-card card-ecb">
+          <span class="card-label">ECB Ciphertext Block</span>
+          <span class="card-value code-val" id="inspect-ecb-hex">-- -- -- --</span>
+        </div>
+        <div class="inspect-card card-gcm">
+          <span class="card-label">GCM Ciphertext Bytes</span>
+          <span class="card-value code-val" id="inspect-gcm-hex">-- -- -- --</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Educational Explanation Accordion / Drawer -->
+    <section class="edu-section">
+      <details class="edu-details" open>
+        <summary class="edu-summary">
+          <span class="summary-title">💡 Why does AES-ECB leak image structure? (The Cryptographic Math)</span>
+          <span class="summary-arrow">▼</span>
+        </summary>
+        <div class="edu-content">
+          <div class="edu-grid">
+            <div class="edu-col">
+              <h4>Electronic Codebook (ECB) Mode</h4>
+              <p>
+                In ECB mode, each 16-byte block of plaintext \(P_i\) is encrypted independently using the key \(K\):
+                $$\text{Ciphertext } C_i = E_K(P_i)$$
+              </p>
+              <p>
+                If two plaintext blocks are identical (\(P_a = P_b\)), their ciphertexts are guaranteed to be identical (\(C_a = C_b\)). Because images contain vast contiguous regions of identical pixel colors (e.g. flat background areas), those areas turn into repeating ciphertext tiles, preserving the visual shape/silhouette of logos and objects.
+              </p>
+            </div>
+            <div class="edu-col">
+              <h4>Galois/Counter Mode (GCM)</h4>
+              <p>
+                In GCM mode, AES operates as a counter-mode cipher combined with a Galois authentication tag:
+                $$\text{Ciphertext } C_i = P_i \oplus E_K(\text{IV} \parallel i)$$
+              </p>
+              <p>
+                Because the block counter \(i\) increments for every single 16-byte block, every block uses a unique keystream byte sequence. Even if \(P_a = P_b\), \(C_a \neq C_b\). The image is transformed into pure statistical static, completely hiding all visual patterns.
+              </p>
+            </div>
+          </div>
+        </div>
+      </details>
+    </section>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <p>Cryptography Course Demonstration Project • Built with HTML5 Canvas & Web Crypto API</p>
+    </footer>
+  </div>
+
+  <!-- Scripts -->
+  <script src="aes-ecb.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
