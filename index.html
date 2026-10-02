@@ -3,265 +3,636 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AES Image Encryption Visualizer — ECB Penguin Flaw Demo</title>
-  <meta name="description" content="Interactive visualizer demonstrating why cipher mode matters by comparing naive AES-ECB pattern leakage against secure AES-GCM visual static.">
+  <title>AES Cryptanalysis Workbench — ECB Pattern Leakage & GCM Authentication</title>
+  <meta name="description" content="Professional cryptanalysis workbench demonstrating cipher mode security: AES-128-ECB structural leakage vs AES-128-GCM authenticated diffusion with live block inspection and bit-exact recovery verification.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
-<body>
-  <div class="app-container">
-    <!-- Header -->
-    <header class="app-header">
-      <div class="header-content">
-        <div class="title-group">
-          <div class="logo-icon">🔒</div>
-          <div>
-            <h1>AES Image Encryption Visualizer</h1>
-            <p class="subtitle">Demonstrating why cipher <em>mode</em> matters — Naive AES-ECB vs Secure AES-GCM</p>
+<body class="workbench-body">
+  <div class="workbench-layout">
+
+    <!-- Top Navigation / Application Header -->
+    <header class="app-topbar">
+      <div class="topbar-left">
+        <div class="brand-badge">
+          <svg class="brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+          </svg>
+          <div class="brand-text">
+            <span class="brand-title">AES CRYPTANALYSIS WORKBENCH</span>
+            <span class="brand-subtitle">Interactive Cipher Mode Analysis & Verification</span>
           </div>
         </div>
-        <div class="header-badges">
-          <span class="badge badge-ecb">⚠️ ECB Pattern Leak</span>
-          <span class="badge badge-gcm">🛡️ GCM Secure Static</span>
-          <span class="badge badge-tech">Web Crypto API</span>
+        <div class="system-status-pill" id="system-status-pill">
+          <span class="status-dot"></span>
+          <span class="status-label" id="status-label">WORKBENCH READY</span>
         </div>
+      </div>
+
+      <!-- Preset Selector Strip -->
+      <div class="topbar-center">
+        <span class="toolbar-label">SAMPLE PRESETS:</span>
+        <div class="preset-selector" role="group" aria-label="Sample image presets">
+          <button class="preset-btn active" data-preset="penguin" id="btn-preset-penguin" title="Classic Tux Linux Penguin - Maximum ECB pattern leak">
+            <span class="preset-icon">🐧</span> Tux Penguin
+          </button>
+          <button class="preset-btn" data-preset="shield" id="btn-preset-shield" title="Security Shield & Key Emblem">
+            <span class="preset-icon">🛡️</span> Cyber Shield
+          </button>
+          <button class="preset-btn" data-preset="target" id="btn-preset-target" title="High-contrast concentric target geometry">
+            <span class="preset-icon">🎯</span> Target Reticle
+          </button>
+          <button class="preset-btn" data-preset="qr" id="btn-preset-qr" title="2D Barcode / QR Matrix data patterns">
+            <span class="preset-icon">🏁</span> QR Matrix
+          </button>
+          <button class="preset-btn" data-preset="medical" id="btn-preset-medical" title="Medical PACS DICOM Radiograph silhouette">
+            <span class="preset-icon">🩻</span> Medical PACS
+          </button>
+        </div>
+      </div>
+
+      <!-- Topbar Actions -->
+      <div class="topbar-right">
+        <label for="image-upload" class="action-link-btn" title="Upload custom image (PNG/JPG/WEBP) or paste from clipboard (Ctrl+V)">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+          Upload
+          <input type="file" id="image-upload" accept="image/*">
+        </label>
+        <button class="action-link-btn" id="btn-export-audit" title="Export cryptographic benchmark and verification log as JSON">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+          Export Audit
+        </button>
+        <button class="action-link-btn highlight" id="btn-open-specs" title="View Cryptographic Specifications & Cipher Theory">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+          Cipher Specs
+        </button>
       </div>
     </header>
 
-    <!-- Main Control Bar -->
-    <section class="control-panel">
-      <!-- Sample & Upload Controls -->
-      <div class="control-group">
-        <label class="group-label">1. Select or Upload Image</label>
-        <div class="sample-buttons">
-          <button class="btn btn-sample active" data-sample="shield" id="btn-sample-shield">
-            <span class="btn-icon">🛡️</span> Shield & Key
-          </button>
-          <button class="btn btn-sample" data-sample="penguin" id="btn-sample-penguin">
-            <span class="btn-icon">🐧</span> ECB Penguin
-          </button>
-          <button class="btn btn-sample" data-sample="target" id="btn-sample-target">
-            <span class="btn-icon">🎯</span> Target Logo
-          </button>
-          <label for="image-upload" class="btn btn-upload" id="label-upload">
-            <span class="btn-icon">📁</span> Upload Custom Image
-            <input type="file" id="image-upload" accept="image/*">
+    <!-- Workbench Parameters & Primary Execution Ribbon -->
+    <section class="workbench-toolbar">
+      <!-- Parameters Column -->
+      <div class="toolbar-section param-section">
+        <div class="param-box">
+          <label class="param-label" for="aes-key-hex">
+            <span>AES-128 KEY (HEX)</span>
+            <span class="param-meta">16 BYTES / 128 BITS</span>
+          </label>
+          <div class="param-input-group">
+            <input type="text" id="aes-key-hex" class="hex-input" value="2b7e151628aed2a6abf7158809cf4f3c" maxlength="32" spellcheck="false" autocomplete="off">
+            <button class="tool-btn icon-btn" id="btn-gen-key" title="Generate Cryptographically Random AES-128 Key">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="5"></rect><circle cx="8" cy="8" r="1.5"></circle><circle cx="16" cy="16" r="1.5"></circle><circle cx="12" cy="12" r="1.5"></circle><circle cx="16" cy="8" r="1.5"></circle><circle cx="8" cy="16" r="1.5"></circle></svg>
+            </button>
+            <button class="tool-btn icon-btn" id="btn-copy-key" title="Copy Key to Clipboard">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="param-box">
+          <label class="param-label" for="aes-gcm-iv-hex">
+            <span>GCM NONCE / IV (HEX)</span>
+            <span class="param-meta">12 BYTES / 96 BITS</span>
+          </label>
+          <div class="param-input-group">
+            <input type="text" id="aes-gcm-iv-hex" class="hex-input readonly-input" value="e02f9c4d81a37b15690dc2e4" maxlength="24" readonly spellcheck="false">
+            <button class="tool-btn icon-btn" id="btn-gen-iv" title="Regenerate Random 96-bit Initialization Vector">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Execution Triggers -->
+      <div class="toolbar-section action-section">
+        <button class="btn btn-execute-primary" id="btn-encrypt" title="Encrypt using AES-ECB & AES-GCM concurrently [Ctrl+E]">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+          <span>ENCRYPT MODES</span>
+          <kbd class="shortcut-kbd">⌘E</kbd>
+        </button>
+
+        <button class="btn btn-execute-secondary" id="btn-decrypt" disabled title="Decrypt ciphertexts and execute lossless bit-exact verification [Ctrl+D]">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path></svg>
+          <span>DECRYPT & VERIFY</span>
+          <kbd class="shortcut-kbd">⌘D</kbd>
+        </button>
+
+        <button class="tool-btn btn-reset" id="btn-reset" title="Reset workbench to default state [Esc]">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>
+          Reset
+        </button>
+      </div>
+
+      <!-- Viewport & Inspection Options -->
+      <div class="toolbar-section display-options-section">
+        <div class="toggle-group">
+          <label class="toggle-control" title="Synchronize reticle and crosshair cursor across all viewports">
+            <input type="checkbox" id="chk-sync-reticle" checked>
+            <span class="toggle-switch"></span>
+            <span class="toggle-text">Sync Crosshair</span>
+          </label>
+          <label class="toggle-control" title="Highlight all matching 16-byte blocks across the entire image on hover/click">
+            <input type="checkbox" id="chk-highlight-repeats" checked>
+            <span class="toggle-switch"></span>
+            <span class="toggle-text">Highlight Repeating Blocks</span>
+          </label>
+          <label class="toggle-control" title="Show pixel grid lines when zoomed">
+            <input type="checkbox" id="chk-pixel-grid">
+            <span class="toggle-switch"></span>
+            <span class="toggle-text">Pixel Grid</span>
           </label>
         </div>
-      </div>
 
-      <!-- AES Key & Encryption Actions -->
-      <div class="control-group">
-        <label class="group-label">2. Encryption Key & Execution</label>
-        <div class="key-action-row">
-          <div class="key-input-wrapper">
-            <span class="key-label">128-bit AES Key (Hex):</span>
-            <input type="text" id="aes-key-hex" value="2b7e151628aed2a6abf7158809cf4f3c" maxlength="32" spellcheck="false">
-            <button class="btn btn-icon-only" id="btn-gen-key" title="Generate New Random Key">🎲</button>
-          </div>
-          <div class="action-buttons">
-            <button class="btn btn-primary" id="btn-encrypt">
-              <span class="btn-icon">⚡</span> Encrypt Image
-            </button>
-            <button class="btn btn-success" id="btn-decrypt" disabled>
-              <span class="btn-icon">🔓</span> Decrypt & Verify
-            </button>
-            <button class="btn btn-outline" id="btn-reset">
-              <span class="btn-icon">🔄</span> Reset
-            </button>
+        <div class="zoom-selector">
+          <span class="zoom-label">ZOOM:</span>
+          <div class="zoom-btn-group">
+            <button class="zoom-btn active" data-zoom="1">1×</button>
+            <button class="zoom-btn" data-zoom="2">2×</button>
+            <button class="zoom-btn" data-zoom="4">4×</button>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- Notification Bar -->
-    <div id="status-banner" class="status-banner banner-info">
-      <span class="banner-icon">ℹ️</span>
-      <span id="status-text">Sample image loaded. Click <strong>"Encrypt Image"</strong> to run AES-ECB and AES-GCM mode comparisons.</span>
+    <!-- Operational Telemetry Bar -->
+    <div class="telemetry-banner" id="telemetry-banner">
+      <div class="banner-lead">
+        <svg class="telemetry-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+        <span class="telemetry-msg" id="telemetry-msg">Ready. Click <strong>"ENCRYPT MODES"</strong> to execute AES-128-ECB block cipher alongside AES-128-GCM authenticated stream.</span>
+      </div>
+      <div class="banner-metrics" id="banner-metrics">
+        <span class="metric-item">Buffer: <strong id="metric-resolution">200×200 px</strong></span>
+        <span class="metric-item">Blocks: <strong id="metric-blocks">10,000 (16B)</strong></span>
+        <span class="metric-item">Engine: <strong>JS-ECB + WebCrypto-GCM</strong></span>
+      </div>
     </div>
 
-    <!-- Three-Panel Visualizer Grid -->
-    <main class="visualizer-grid">
-      <!-- Panel 1: Original Image -->
-      <div class="panel panel-original">
-        <div class="panel-header">
-          <div class="panel-title-wrapper">
-            <span class="panel-number">1</span>
-            <h2>Original Image</h2>
-          </div>
-          <span class="panel-meta" id="meta-original">200 × 200 px</span>
-        </div>
-        <div class="canvas-wrapper">
-          <canvas id="canvas-original" width="200" height="200"></canvas>
-          <div class="canvas-overlay" id="overlay-original">
-            <span class="overlay-badge">Plaintext Data</span>
-          </div>
-        </div>
-        <div class="panel-caption">
-          <p class="caption-title">Source Image (Plaintext RGBA)</p>
-          <p class="caption-desc">
-            Large uniform color regions contain identical 16-byte pixel block patterns (4 RGBA pixels per block).
-          </p>
-        </div>
-        <div class="panel-footer-stats">
-          <span>Raw Size: <strong id="stat-orig-size">160,000 B</strong></span>
-          <span>Entropy: <strong id="stat-orig-entropy">Low (Structured)</strong></span>
-        </div>
-      </div>
+    <!-- Primary Tri-Panel Visualizer Grid -->
+    <main class="workbench-grid" id="workbench-grid">
 
-      <!-- Panel 2: AES-ECB Weak Mode -->
-      <div class="panel panel-ecb">
+      <!-- PANEL 1: SOURCE PLAINTEXT -->
+      <article class="cipher-panel panel-source" id="panel-source">
         <div class="panel-header">
-          <div class="panel-title-wrapper">
-            <span class="panel-number">2</span>
-            <h2>Encrypted (AES-ECB)</h2>
+          <div class="panel-title-group">
+            <span class="panel-tag tag-source">SOURCE BUFFER</span>
+            <h2 class="panel-title">Plaintext Image</h2>
           </div>
-          <span class="panel-status-tag tag-weak">⚠️ Weak Mode</span>
-        </div>
-        <div class="canvas-wrapper">
-          <canvas id="canvas-ecb" width="200" height="200"></canvas>
-          <div class="canvas-placeholder" id="placeholder-ecb">
-            <span class="placeholder-icon">⏳</span>
-            <span>Awaiting Encryption</span>
+          <div class="panel-controls">
+            <button class="panel-action-btn" id="btn-dl-orig" title="Export Plaintext PNG">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            </button>
           </div>
         </div>
-        <div class="panel-caption">
-          <p class="caption-title">Notice the Outline / Leak</p>
-          <p class="caption-desc">
-            <strong>Security Flaw:</strong> Identical pixel blocks always encrypt to identical ciphertext blocks. Flat background areas map to a repeating tile pattern, leaking image structure!
-          </p>
-        </div>
-        <div class="panel-footer-stats">
-          <span>Block Chaining: <strong>None (ECB)</strong></span>
-          <span>Leak Status: <strong class="text-danger" id="stat-ecb-leak">Pattern Leaked!</strong></span>
-        </div>
-      </div>
 
-      <!-- Panel 3: AES-GCM Strong Mode -->
-      <div class="panel panel-gcm">
+        <div class="viewport-box">
+          <div class="canvas-viewport" id="viewport-original">
+            <canvas id="canvas-original" width="200" height="200"></canvas>
+            <canvas id="overlay-original" class="canvas-overlay" width="200" height="200"></canvas>
+          </div>
+          <div class="viewport-hud hud-bottom-left">
+            <span class="hud-item" id="hud-orig-coords">X: -- Y: --</span>
+          </div>
+          <div class="viewport-hud hud-bottom-right">
+            <span class="hud-badge badge-neutral">RGBA_8888</span>
+          </div>
+        </div>
+
+        <div class="panel-telemetry">
+          <div class="telemetry-row">
+            <span class="telemetry-label">Encoding Format</span>
+            <span class="telemetry-value font-mono">Raw RGBA (4B / Pixel)</span>
+          </div>
+          <div class="telemetry-row">
+            <span class="telemetry-label">Shannon Entropy</span>
+            <span class="telemetry-value font-mono" id="stat-orig-entropy">-- bits/byte</span>
+          </div>
+          <div class="telemetry-row">
+            <span class="telemetry-label">Unique 16B Blocks</span>
+            <span class="telemetry-value font-mono" id="stat-orig-unique">-- / --</span>
+          </div>
+          <div class="telemetry-row">
+            <span class="telemetry-label">Spatial Redundancy</span>
+            <span class="telemetry-value font-mono" id="stat-orig-redundancy">--%</span>
+          </div>
+        </div>
+      </article>
+
+      <!-- PANEL 2: AES-128-ECB WEAK MODE -->
+      <article class="cipher-panel panel-ecb" id="panel-ecb">
         <div class="panel-header">
-          <div class="panel-title-wrapper">
-            <span class="panel-number">3</span>
-            <h2>Encrypted (AES-GCM)</h2>
+          <div class="panel-title-group">
+            <span class="panel-tag tag-ecb">AES-128-ECB</span>
+            <h2 class="panel-title">Electronic Codebook</h2>
           </div>
-          <span class="panel-status-tag tag-strong">🛡️ Secure Mode</span>
-        </div>
-        <div class="canvas-wrapper">
-          <canvas id="canvas-gcm" width="200" height="200"></canvas>
-          <div class="canvas-placeholder" id="placeholder-gcm">
-            <span class="placeholder-icon">⏳</span>
-            <span>Awaiting Encryption</span>
+          <div class="panel-controls">
+            <span class="verdict-tag verdict-leak" id="verdict-ecb">⚠️ LEAK DETECTED</span>
+            <button class="panel-action-btn" id="btn-dl-ecb" disabled title="Export Encrypted ECB PNG">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            </button>
           </div>
         </div>
-        <div class="panel-caption">
-          <p class="caption-title">True Statistical Randomness</p>
-          <p class="caption-desc">
-            <strong>Secure Cipher Mode:</strong> Uses a 96-bit unique IV (Initialization Vector) + Counter mode + Auth Tag. Identical pixel blocks encrypt to completely different pseudo-random bytes.
-          </p>
+
+        <div class="viewport-box">
+          <div class="canvas-viewport" id="viewport-ecb">
+            <canvas id="canvas-ecb" width="200" height="200"></canvas>
+            <canvas id="overlay-ecb" class="canvas-overlay" width="200" height="200"></canvas>
+            <div class="viewport-placeholder" id="placeholder-ecb">
+              <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+              <span>Awaiting Encryption Trigger</span>
+            </div>
+          </div>
+          <div class="viewport-hud hud-bottom-left">
+            <span class="hud-item" id="hud-ecb-coords">X: -- Y: --</span>
+          </div>
+          <div class="viewport-hud hud-bottom-right">
+            <span class="hud-badge badge-warning">No IV / Deterministic</span>
+          </div>
         </div>
-        <div class="panel-footer-stats">
-          <span>Auth Tag: <strong>16 Bytes</strong></span>
-          <span>Leak Status: <strong class="text-success" id="stat-gcm-leak">Zero Structure</strong></span>
+
+        <div class="panel-telemetry">
+          <div class="telemetry-row">
+            <span class="telemetry-label">Operational Mode</span>
+            <span class="telemetry-value font-mono">Independent Block: C<sub>i</sub> = E<sub>K</sub>(P<sub>i</sub>)</span>
+          </div>
+          <div class="telemetry-row">
+            <span class="telemetry-label">Shannon Entropy</span>
+            <span class="telemetry-value font-mono text-warning" id="stat-ecb-entropy">-- bits/byte</span>
+          </div>
+          <div class="telemetry-row">
+            <span class="telemetry-label">Unique Cipher Blocks</span>
+            <span class="telemetry-value font-mono" id="stat-ecb-unique">-- / --</span>
+          </div>
+          <div class="telemetry-row">
+            <span class="telemetry-label">Block Pattern Correlation</span>
+            <span class="telemetry-value font-mono text-danger" id="stat-ecb-correlation">100% Structural Leak</span>
+          </div>
         </div>
-      </div>
+      </article>
+
+      <!-- PANEL 3: AES-128-GCM SECURE MODE -->
+      <article class="cipher-panel panel-gcm" id="panel-gcm">
+        <div class="panel-header">
+          <div class="panel-title-group">
+            <span class="panel-tag tag-gcm">AES-128-GCM</span>
+            <h2 class="panel-title">Galois / Counter Mode</h2>
+          </div>
+          <div class="panel-controls">
+            <span class="verdict-tag verdict-secure" id="verdict-gcm">🛡️ FULL DIFFUSION</span>
+            <button class="panel-action-btn" id="btn-dl-gcm" disabled title="Export Encrypted GCM PNG">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="viewport-box">
+          <div class="canvas-viewport" id="viewport-gcm">
+            <canvas id="canvas-gcm" width="200" height="200"></canvas>
+            <canvas id="overlay-gcm" class="canvas-overlay" width="200" height="200"></canvas>
+            <div class="viewport-placeholder" id="placeholder-gcm">
+              <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+              <span>Awaiting Encryption Trigger</span>
+            </div>
+          </div>
+          <div class="viewport-hud hud-bottom-left">
+            <span class="hud-item" id="hud-gcm-coords">X: -- Y: --</span>
+          </div>
+          <div class="viewport-hud hud-bottom-right">
+            <span class="hud-badge badge-success">96b IV + 128b Auth Tag</span>
+          </div>
+        </div>
+
+        <div class="panel-telemetry">
+          <div class="telemetry-row">
+            <span class="telemetry-label">Operational Mode</span>
+            <span class="telemetry-value font-mono">Counter Stream: C<sub>i</sub> = P<sub>i</sub> ⊕ E<sub>K</sub>(IV ∥ i)</span>
+          </div>
+          <div class="telemetry-row">
+            <span class="telemetry-label">Shannon Entropy</span>
+            <span class="telemetry-value font-mono text-success" id="stat-gcm-entropy">-- bits/byte</span>
+          </div>
+          <div class="telemetry-row">
+            <span class="telemetry-label">Unique Cipher Blocks</span>
+            <span class="telemetry-value font-mono" id="stat-gcm-unique">-- / --</span>
+          </div>
+          <div class="telemetry-row">
+            <span class="telemetry-label">Pattern Obfuscation</span>
+            <span class="telemetry-value font-mono text-success" id="stat-gcm-correlation">Complete Pseudo-Random</span>
+          </div>
+        </div>
+      </article>
     </main>
 
-    <!-- Decryption Verification View (Hidden until decrypted) -->
-    <section id="decryption-section" class="decryption-section hidden">
-      <div class="section-title-row">
-        <h2>🔓 Decryption Verification & Bit-Exact Comparison</h2>
-        <span class="verify-badge" id="verify-badge">100% Bit-Exact Match</span>
-      </div>
-      <div class="decrypt-grid">
-        <!-- Decrypted ECB Panel -->
-        <div class="panel decrypt-panel">
-          <h3>Decrypted ECB Image</h3>
-          <div class="canvas-wrapper">
-            <canvas id="canvas-dec-ecb" width="200" height="200"></canvas>
+    <!-- Deep Analytical Telemetry Dock (Dual Column) -->
+    <section class="analysis-dock">
+
+      <!-- Column A: Interactive 16-Byte Block Inspector -->
+      <div class="dock-panel inspector-dock">
+        <div class="dock-header">
+          <div class="dock-title-group">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            <h3>Interactive 16-Byte Block Inspector</h3>
           </div>
-          <p class="decrypt-status" id="status-dec-ecb">Match: <strong class="text-success">Exact Match (0 byte diff)</strong></p>
-        </div>
-
-        <!-- Decrypted GCM Panel -->
-        <div class="panel decrypt-panel">
-          <h3>Decrypted GCM Image</h3>
-          <div class="canvas-wrapper">
-            <canvas id="canvas-dec-gcm" width="200" height="200"></canvas>
+          <div class="inspector-controls">
+            <span class="hint-text">Hover or click canvas to lock block</span>
+            <button class="tool-btn-sm" id="btn-unlock-inspector" title="Unlock inspector cursor">Unlock</button>
           </div>
-          <p class="decrypt-status" id="status-dec-gcm">Match: <strong class="text-success">Exact Match (0 byte diff)</strong></p>
         </div>
-      </div>
-    </section>
 
-    <!-- Pixel Block Inspector Drawer -->
-    <section class="inspector-section">
-      <div class="inspector-header">
-        <div class="inspector-title">
-          <span class="inspector-icon">🔍</span>
-          <h3>Interactive Pixel & Block Byte Inspector</h3>
-        </div>
-        <span class="inspector-hint">Hover mouse over any image panel above to inspect raw RGBA bytes</span>
-      </div>
-      <div class="inspector-content" id="inspector-content">
-        <div class="inspect-card">
-          <span class="card-label">Hover Coordinate</span>
-          <span class="card-value" id="inspect-coords">X: --, Y: -- (Block #--)</span>
-        </div>
-        <div class="inspect-card">
-          <span class="card-label">Original RGBA (Hex)</span>
-          <span class="card-value code-val" id="inspect-orig-hex">#------</span>
-        </div>
-        <div class="inspect-card card-ecb">
-          <span class="card-label">ECB Ciphertext Block</span>
-          <span class="card-value code-val" id="inspect-ecb-hex">-- -- -- --</span>
-        </div>
-        <div class="inspect-card card-gcm">
-          <span class="card-label">GCM Ciphertext Bytes</span>
-          <span class="card-value code-val" id="inspect-gcm-hex">-- -- -- --</span>
-        </div>
-      </div>
-    </section>
-
-    <!-- Educational Explanation Accordion / Drawer -->
-    <section class="edu-section">
-      <details class="edu-details" open>
-        <summary class="edu-summary">
-          <span class="summary-title">💡 Why does AES-ECB leak image structure? (The Cryptographic Math)</span>
-          <span class="summary-arrow">▼</span>
-        </summary>
-        <div class="edu-content">
-          <div class="edu-grid">
-            <div class="edu-col">
-              <h4>Electronic Codebook (ECB) Mode</h4>
-              <p>
-                In ECB mode, each 16-byte block of plaintext \(P_i\) is encrypted independently using the key \(K\):
-                $$\text{Ciphertext } C_i = E_K(P_i)$$
-              </p>
-              <p>
-                If two plaintext blocks are identical (\(P_a = P_b\)), their ciphertexts are guaranteed to be identical (\(C_a = C_b\)). Because images contain vast contiguous regions of identical pixel colors (e.g. flat background areas), those areas turn into repeating ciphertext tiles, preserving the visual shape/silhouette of logos and objects.
-              </p>
+        <div class="dock-content">
+          <!-- Coordinates & Spatial Span -->
+          <div class="inspector-meta-row">
+            <div class="meta-tag">
+              <span class="meta-label">BLOCK POSITION:</span>
+              <span class="meta-val font-mono" id="inspect-coords">X: [0..3], Y: 0 (Block #0)</span>
             </div>
-            <div class="edu-col">
-              <h4>Galois/Counter Mode (GCM)</h4>
-              <p>
-                In GCM mode, AES operates as a counter-mode cipher combined with a Galois authentication tag:
-                $$\text{Ciphertext } C_i = P_i \oplus E_K(\text{IV} \parallel i)$$
-              </p>
-              <p>
-                Because the block counter \(i\) increments for every single 16-byte block, every block uses a unique keystream byte sequence. Even if \(P_a = P_b\), \(C_a \neq C_b\). The image is transformed into pure statistical static, completely hiding all visual patterns.
-              </p>
+            <div class="meta-tag">
+              <span class="meta-label">REPETITION IN IMAGE:</span>
+              <span class="meta-val font-mono" id="inspect-match-count">-- occurrences (--%)</span>
             </div>
           </div>
+
+          <!-- Hex Dump Grid -->
+          <div class="hexdump-matrix">
+            <div class="hexdump-card">
+              <div class="hexdump-header">
+                <span class="hexdump-title">Plaintext (16-Byte Block)</span>
+                <span class="hexdump-badge">4 RGBA Pixels</span>
+              </div>
+              <div class="hexdump-hex font-mono" id="hex-plaintext">00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00</div>
+              <div class="hexdump-ascii font-mono" id="ascii-plaintext">................</div>
+            </div>
+
+            <div class="hexdump-card card-ecb-leak">
+              <div class="hexdump-header">
+                <span class="hexdump-title text-warning">AES-ECB Ciphertext</span>
+                <span class="hexdump-badge badge-warning" id="ecb-match-status">Deterministic Match</span>
+              </div>
+              <div class="hexdump-hex font-mono text-warning" id="hex-ecb">-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --</div>
+              <div class="hexdump-subtext font-mono" id="ecb-leak-explanation">Encrypted with Key K independently</div>
+            </div>
+
+            <div class="hexdump-card card-gcm-diff">
+              <div class="hexdump-header">
+                <span class="hexdump-title text-success">AES-GCM Ciphertext</span>
+                <span class="hexdump-badge badge-success">Unique Keystream</span>
+              </div>
+              <div class="hexdump-hex font-mono text-success" id="hex-gcm">-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --</div>
+              <div class="hexdump-subtext font-mono">XOR Keystream: E<sub>K</sub>(IV ∥ i)</div>
+            </div>
+          </div>
+
+          <!-- Cryptanalytic Correlation Note -->
+          <div class="correlation-notice" id="correlation-notice">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+            <p id="correlation-text">Move your cursor over any visual element (such as the penguin's belly or background) to observe how identical 16-byte pixel patterns produce identical ciphertext in ECB mode while producing unique random output in GCM mode.</p>
+          </div>
         </div>
-      </details>
+      </div>
+
+      <!-- Column B: Shannon Entropy & Byte Frequency Spectrum -->
+      <div class="dock-panel spectrum-dock">
+        <div class="dock-header">
+          <div class="dock-title-group">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10"></path><path d="M12 20V4"></path><path d="M6 20v-6"></path></svg>
+            <h3>Shannon Entropy & Byte Frequency Spectrum</h3>
+          </div>
+          <span class="spectrum-legend">
+            <span class="legend-dot dot-orig"></span> Plaintext
+            <span class="legend-dot dot-ecb"></span> ECB
+            <span class="legend-dot dot-gcm"></span> GCM
+          </span>
+        </div>
+
+        <div class="dock-content">
+          <!-- Byte Distribution Canvas Spectrum -->
+          <div class="spectrum-canvas-wrap">
+            <canvas id="canvas-spectrum" width="512" height="110"></canvas>
+            <div class="spectrum-axis-labels">
+              <span>0x00 (0)</span>
+              <span>Byte Value (0..255)</span>
+              <span>0xFF (255)</span>
+            </div>
+          </div>
+
+          <!-- Entropy Gauge Meters -->
+          <div class="entropy-meters-grid">
+            <div class="entropy-meter-box">
+              <div class="meter-head">
+                <span class="meter-name">Source Entropy</span>
+                <span class="meter-val font-mono" id="meter-val-orig">-- / 8.0</span>
+              </div>
+              <div class="meter-bar-track">
+                <div class="meter-bar-fill fill-orig" id="meter-fill-orig" style="width: 0%;"></div>
+              </div>
+              <span class="meter-desc">Redundancy in visual data</span>
+            </div>
+
+            <div class="entropy-meter-box">
+              <div class="meter-head">
+                <span class="meter-name">AES-ECB Entropy</span>
+                <span class="meter-val font-mono text-warning" id="meter-val-ecb">-- / 8.0</span>
+              </div>
+              <div class="meter-bar-track">
+                <div class="meter-bar-fill fill-ecb" id="meter-fill-ecb" style="width: 0%;"></div>
+              </div>
+              <span class="meter-desc text-warning">Depressed by repeating blocks</span>
+            </div>
+
+            <div class="entropy-meter-box">
+              <div class="meter-head">
+                <span class="meter-name">AES-GCM Entropy</span>
+                <span class="meter-val font-mono text-success" id="meter-val-gcm">-- / 8.0</span>
+              </div>
+              <div class="meter-bar-track">
+                <div class="meter-bar-fill fill-gcm" id="meter-fill-gcm" style="width: 0%;"></div>
+              </div>
+              <span class="meter-desc text-success">Theoretical max diffusion (~8.0)</span>
+            </div>
+          </div>
+        </div>
+      </div>
     </section>
 
-    <!-- Footer -->
-    <footer class="app-footer">
-      <p>Cryptography Course Demonstration Project • Built with HTML5 Canvas & Web Crypto API</p>
+    <!-- Decryption Verification & Bit-Perfect Integrity Console (Hidden until decrypted) -->
+    <section class="verification-console hidden" id="verification-console">
+      <div class="console-header">
+        <div class="console-title-group">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+          <h2>Decryption Recovery & Bit-Exact Differential Verification</h2>
+        </div>
+        <div class="console-badges">
+          <span class="badge-proof" id="badge-integrity-proof">100% BIT-PERFECT RECOVERY</span>
+        </div>
+      </div>
+
+      <div class="console-body">
+        <!-- Cryptographic Hashes (SHA-256) -->
+        <div class="hash-matrix-card">
+          <h4 class="card-subtitle">Cryptographic Digest Verification (SHA-256)</h4>
+          <div class="hash-rows-list">
+            <div class="hash-row">
+              <span class="hash-label">Source Plaintext:</span>
+              <span class="hash-hex font-mono" id="sha-original">Computing...</span>
+              <span class="hash-badge">ORIGINAL REFERENCE</span>
+            </div>
+            <div class="hash-row">
+              <span class="hash-label">Decrypted ECB:</span>
+              <span class="hash-hex font-mono text-success" id="sha-ecb">Computing...</span>
+              <span class="hash-badge badge-match" id="badge-ecb-match">MATCH</span>
+            </div>
+            <div class="hash-row">
+              <span class="hash-label">Decrypted GCM:</span>
+              <span class="hash-hex font-mono text-success" id="sha-gcm">Computing...</span>
+              <span class="hash-badge badge-match" id="badge-gcm-match">MATCH</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Verification Metrics Summary Cards -->
+        <div class="verification-stats-grid">
+          <div class="stat-card">
+            <span class="stat-card-label">Byte Differential</span>
+            <span class="stat-card-val text-success" id="stat-diff-bytes">0 / 160,000</span>
+            <span class="stat-card-sub">0.000% mismatch</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-card-label">Peak SNR (PSNR)</span>
+            <span class="stat-card-val text-success" id="stat-psnr">+∞ dB</span>
+            <span class="stat-card-sub">Zero lossy compression</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-card-label">GCM Auth Tag</span>
+            <span class="stat-card-val text-success" id="stat-auth-tag">VERIFIED</span>
+            <span class="stat-card-sub">128-bit GHASH Tag valid</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-card-label">Execution Benchmarks</span>
+            <span class="stat-card-val font-mono" id="stat-benchmarks">ECB: --ms | GCM: --ms</span>
+            <span class="stat-card-sub" id="stat-throughput">Throughput: -- MB/s</span>
+          </div>
+        </div>
+
+        <!-- Decrypted Recovered Canvases & Diff Map View -->
+        <div class="decrypted-viewports-grid">
+          <div class="dec-panel">
+            <div class="dec-panel-head">
+              <h3>Recovered from AES-ECB</h3>
+              <span class="dec-status-pill text-success" id="pill-dec-ecb">Exact Bit Match</span>
+            </div>
+            <div class="viewport-box">
+              <canvas id="canvas-dec-ecb" width="200" height="200"></canvas>
+            </div>
+          </div>
+
+          <div class="dec-panel">
+            <div class="dec-panel-head">
+              <h3>Recovered from AES-GCM</h3>
+              <span class="dec-status-pill text-success" id="pill-dec-gcm">Exact Bit Match</span>
+            </div>
+            <div class="viewport-box">
+              <canvas id="canvas-dec-gcm" width="200" height="200"></canvas>
+            </div>
+          </div>
+
+          <div class="dec-panel">
+            <div class="dec-panel-head">
+              <h3>Differential Map (Original vs Decrypted)</h3>
+              <span class="dec-status-pill text-success" id="pill-diff-map">0 Pixels Differ</span>
+            </div>
+            <div class="viewport-box diff-box">
+              <canvas id="canvas-diff" width="200" height="200"></canvas>
+              <div class="diff-overlay-hint">Pure Black indicates 0.0 delta across all color channels</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Cryptographic Specifications & Theory Modal -->
+    <div class="modal-backdrop hidden" id="modal-specs">
+      <div class="modal-window">
+        <div class="modal-header">
+          <div class="modal-title-wrap">
+            <span class="modal-badge">CRYPTOGRAPHIC SPECIFICATION</span>
+            <h2>AES Image Encryption Analysis</h2>
+            <p class="modal-sub">Cipher Mode Evaluation: AES-128-ECB vs AES-128-GCM</p>
+          </div>
+          <button class="modal-close-btn" id="btn-close-specs" title="Close modal">✕</button>
+        </div>
+
+        <div class="modal-body">
+          <!-- Mathematical Explainer & Cryptanalysis -->
+          <div class="specs-section">
+            <h3>Cipher Mode Mathematical Formulations</h3>
+            <div class="specs-grid">
+              <div class="spec-col">
+                <div class="spec-col-header">
+                  <h4>Electronic Codebook (ECB) Mode</h4>
+                  <span class="spec-badge badge-warning">NIST Prohibited for Confidentiality</span>
+                </div>
+                <div class="formula-box font-mono">
+                  Encryption:  C<sub>i</sub> = E<sub>K</sub>(P<sub>i</sub>)<br>
+                  Decryption:  P<sub>i</sub> = D<sub>K</sub>(C<sub>i</sub>)
+                </div>
+                <p>
+                  <strong>Structural Vulnerability:</strong> In ECB mode, every 16-byte block of plaintext P<sub>i</sub> maps deterministically to the identical ciphertext block C<sub>i</sub> under key K. When encrypting structured raster images, contiguous regions of identical pixels (such as solid backgrounds or uniform color patches) produce repeating ciphertext blocks, completely preserving object outlines and geometric silhouettes.
+                </p>
+              </div>
+
+              <div class="spec-col">
+                <div class="spec-col-header">
+                  <h4>Galois/Counter Mode (GCM)</h4>
+                  <span class="spec-badge badge-success">NIST Recommended Authenticated Mode</span>
+                </div>
+                <div class="formula-box font-mono">
+                  Keystream:   S<sub>i</sub> = E<sub>K</sub>(IV ∥ i)<br>
+                  Encryption:  C<sub>i</sub> = P<sub>i</sub> ⊕ S<sub>i</sub><br>
+                  Auth Tag:    T = GHASH<sub>H</sub>(A, C, L) ⊕ E<sub>K</sub>(IV ∥ 0)
+                </div>
+                <p>
+                  <strong>Authenticated Diffusion:</strong> GCM transforms AES into a stream cipher via a counter combined with a unique 96-bit Initialization Vector (IV). Because the block counter <em>i</em> increments with each block, identical plaintext blocks are XORed with distinct keystream bytes, delivering maximum Shannon entropy (~8.0 bits/byte) and full visual obscurity.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Cryptographic Verification Checklist -->
+          <div class="specs-section">
+            <h3>Cryptographic Verification Checklist</h3>
+            <ul class="checklist-grid">
+              <li><span class="check-icon">✓</span> <strong>Dual Cipher Execution:</strong> Concurrent AES-ECB & AES-GCM encryption on identical source buffer.</li>
+              <li><span class="check-icon">✓</span> <strong>Visual Pattern Leakage:</strong> Immediate visual contrast of preserved silhouettes vs random noise.</li>
+              <li><span class="check-icon">✓</span> <strong>Interactive Block Inspector:</strong> Click/hover analysis demonstrating 1:1 mapping of repeating 16-byte blocks.</li>
+              <li><span class="check-icon">✓</span> <strong>Shannon Entropy Telemetry:</strong> Real-time entropy computation and byte frequency spectrum.</li>
+              <li><span class="check-icon">✓</span> <strong>Lossless Reversibility:</strong> Bit-exact recovery verification confirming zero byte mismatch and matching SHA-256 digests.</li>
+              <li><span class="check-icon">✓</span> <strong>100% Client-Side:</strong> Zero external backend dependencies; leverages native Web Crypto API and pure JS AES engine.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn btn-secondary" id="btn-close-specs-bottom">Close Specification</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Application Footer Bar -->
+    <footer class="workbench-footer">
+      <div class="footer-left">
+        <span>AES Cryptanalysis Workbench</span>
+        <span class="footer-sep">|</span>
+        <span>AES-128 Block vs Stream Analysis</span>
+      </div>
+      <div class="footer-right">
+        <span>Pure JS AES-128 Engine + W3C Web Crypto API</span>
+        <span class="footer-sep">|</span>
+        <span class="font-mono">100% Client-Side In-Memory Execution</span>
+      </div>
     </footer>
+
   </div>
 
   <!-- Scripts -->
