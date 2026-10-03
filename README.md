@@ -78,6 +78,13 @@ In raster images:
 - `Esc`: Reset / Unlock inspector
 - `1` through `5`: Quick switch between presets (Penguin, Shield, Target, QR, Medical)
 
+### 8. 📁 Universal File Vault (Encrypt & Decrypt Any File Format)
+- **Universal Format Support**: Encrypt and decrypt any file format (`.pdf`, `.docx`, `.zip`, `.png`, `.jpg`, `.mp4`, `.mp3`, `.txt`, `.csv`, binary data, archives) with 100% client-side execution and zero server dependencies.
+- **Autonomous `AESENC v1` Container**: Encrypted files are exported as self-describing `.enc` packages preserving the original file name, MIME type, cipher mode, 96-bit IV, 128-bit GHASH authentication tag, and reference SHA-256 digest.
+- **Round-Trip Decryption & Bit-Exact Verification**: Re-import any `.enc` package to decrypt, automatically authenticate against the 128-bit GHASH tag (detecting any tampering or incorrect key), and verify 100% bit-exact SHA-256 restoration with 0 byte mismatch.
+- **Integrated Live Content Preview**: Direct in-browser preview of recovered images, text documents, code, audio, and video files upon decryption.
+- **1-Click Test Dossier**: Built-in sample confidential dossier generator for immediate zero-friction round-trip testing.
+
 ---
 
 ## 📂 Project Structure

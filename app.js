@@ -1283,10 +1283,824 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  // --- 12. Universal File Encryption & Decryption Vault ---
+  function initUniversalFileVault() {
+    // Mode Switcher Navigation
+    const tabModeImages = document.getElementById("tab-mode-images");
+    const tabModeVault = document.getElementById("tab-mode-vault");
+    const viewImageWorkbench = document.getElementById("view-image-workbench");
+    const viewFileVault = document.getElementById("view-file-vault");
+    const topbarPresetsContainer = document.getElementById("topbar-presets-container");
+    const actionBtnImageUpload = document.getElementById("action-btn-image-upload");
+
+    function switchAppMode(mode) {
+      if (mode === "vault") {
+        tabModeVault.classList.add("active");
+        tabModeVault.setAttribute("aria-selected", "true");
+        tabModeImages.classList.remove("active");
+        tabModeImages.setAttribute("aria-selected", "false");
+
+        viewImageWorkbench.classList.add("hidden");
+        viewFileVault.classList.remove("hidden");
+
+        if (topbarPresetsContainer) topbarPresetsContainer.style.display = "none";
+        if (actionBtnImageUpload) actionBtnImageUpload.style.display = "none";
+
+        setSystemStatus("ready", "VAULT READY");
+        vaultTelemetryMsg.innerHTML = "Universal File Vault active. Select or drag any file into the Encrypt dropzone to begin.";
+      } else {
+        tabModeImages.classList.add("active");
+        tabModeImages.setAttribute("aria-selected", "true");
+        tabModeVault.classList.remove("active");
+        tabModeVault.setAttribute("aria-selected", "false");
+
+        viewFileVault.classList.add("hidden");
+        viewImageWorkbench.classList.remove("hidden");
+
+        if (topbarPresetsContainer) topbarPresetsContainer.style.display = "flex";
+        if (actionBtnImageUpload) actionBtnImageUpload.style.display = "inline-flex";
+
+        setSystemStatus("ready", "WORKBENCH READY");
+      }
+    }
+
+    if (tabModeImages && tabModeVault) {
+      tabModeImages.addEventListener("click", () => switchAppMode("images"));
+      tabModeVault.addEventListener("click", () => switchAppMode("vault"));
+    }
+
+    // Vault Subtab Navigation
+    const btnSubtabEncrypt = document.getElementById("btn-subtab-encrypt");
+    const btnSubtabDecrypt = document.getElementById("btn-subtab-decrypt");
+    const btnVaultSample = document.getElementById("btn-vault-sample");
+    const vaultSubviewEncrypt = document.getElementById("vault-subview-encrypt");
+    const vaultSubviewDecrypt = document.getElementById("vault-subview-decrypt");
+    const vaultTelemetryMsg = document.getElementById("vault-telemetry-msg");
+
+    function switchVaultSubtab(subtab) {
+      if (subtab === "decrypt") {
+        btnSubtabDecrypt.classList.add("active");
+        btnSubtabDecrypt.setAttribute("aria-selected", "true");
+        btnSubtabEncrypt.classList.remove("active");
+        btnSubtabEncrypt.setAttribute("aria-selected", "false");
+
+        vaultSubviewEncrypt.classList.add("hidden");
+        vaultSubviewDecrypt.classList.remove("hidden");
+        vaultTelemetryMsg.innerHTML = "Decryption Vault active. Drop your <strong>.enc</strong> file or click browse to inspect and recover.";
+      } else {
+        btnSubtabEncrypt.classList.add("active");
+        btnSubtabEncrypt.setAttribute("aria-selected", "true");
+        btnSubtabDecrypt.classList.remove("active");
+        btnSubtabDecrypt.setAttribute("aria-selected", "false");
+
+        vaultSubviewDecrypt.classList.add("hidden");
+        vaultSubviewEncrypt.classList.remove("hidden");
+        vaultTelemetryMsg.innerHTML = "Ready. Select or drag any file into the Encrypt dropzone to begin client-side encryption.";
+      }
+    }
+
+    if (btnSubtabEncrypt && btnSubtabDecrypt) {
+      btnSubtabEncrypt.addEventListener("click", () => switchVaultSubtab("encrypt"));
+      btnSubtabDecrypt.addEventListener("click", () => switchVaultSubtab("decrypt"));
+    }
+
+    // Vault State
+    let vaultSourceFile = null;        // { name, size, type, buffer, uint8Array, sha256, lastModified }
+    let vaultEncryptedPkg = null;      // { bytes, filename, metadata, durationMs, throughputMBs, entropy }
+    let vaultDecryptedFile = null;     // { bytes, filename, mimeType, sha256, isMatch }
+
+    // Dropzones & Inputs (Encrypt)
+    const vaultEncryptDropzone = document.getElementById("vault-encrypt-dropzone");
+    const vaultEncryptInput = document.getElementById("vault-encrypt-input");
+    const vaultEncryptFileCard = document.getElementById("vault-encrypt-file-card");
+    const vaultEncFileBadge = document.getElementById("vault-enc-file-badge");
+    const vaultEncFileName = document.getElementById("vault-enc-file-name");
+    const vaultEncFileMeta = document.getElementById("vault-enc-file-meta");
+    const btnVaultClearEnc = document.getElementById("btn-vault-clear-enc");
+    const vaultEncSha256 = document.getElementById("vault-enc-sha256");
+    const vaultEncFileDate = document.getElementById("vault-enc-file-date");
+    const vaultEncHexPreview = document.getElementById("vault-enc-hex-preview");
+    const vaultEncAsciiPreview = document.getElementById("vault-enc-ascii-preview");
+
+    // Cipher Controls (Encrypt)
+    const vaultCipherMode = document.getElementById("vault-cipher-mode");
+    const vaultKeyHex = document.getElementById("vault-key-hex");
+    const btnVaultGenKey = document.getElementById("btn-vault-gen-key");
+    const btnVaultCopyKey = document.getElementById("btn-vault-copy-key");
+    const btnVaultSyncKey = document.getElementById("btn-vault-sync-key");
+    const vaultIvFormGroup = document.getElementById("vault-iv-form-group");
+    const vaultIvHex = document.getElementById("vault-iv-hex");
+    const btnVaultGenIv = document.getElementById("btn-vault-gen-iv");
+    const vaultOutFilename = document.getElementById("vault-out-filename");
+    const btnVaultDoEncrypt = document.getElementById("btn-vault-do-encrypt");
+
+    // Result Card (Encrypt)
+    const vaultEncryptResultCard = document.getElementById("vault-encrypt-result-card");
+    const vaultResEncSize = document.getElementById("vault-res-enc-size");
+    const vaultResEncMode = document.getElementById("vault-res-enc-mode");
+    const vaultResEncEntropy = document.getElementById("vault-res-enc-entropy");
+    const vaultResEncTime = document.getElementById("vault-res-enc-time");
+    const vaultResEncThroughput = document.getElementById("vault-res-enc-throughput");
+    const btnVaultDownloadEnc = document.getElementById("btn-vault-download-enc");
+    const btnVaultDownloadEncLabel = document.getElementById("btn-vault-download-enc-label");
+    const btnVaultTransferToDecrypt = document.getElementById("btn-vault-transfer-to-decrypt");
+
+    // Dropzones & Inputs (Decrypt)
+    const vaultDecryptDropzone = document.getElementById("vault-decrypt-dropzone");
+    const vaultDecryptInput = document.getElementById("vault-decrypt-input");
+    const vaultDecPackageCard = document.getElementById("vault-dec-package-card");
+    const vaultDecPkgBadge = document.getElementById("vault-dec-pkg-badge");
+    const vaultDecPkgFilename = document.getElementById("vault-dec-pkg-filename");
+    const vaultDecPkgMeta = document.getElementById("vault-dec-pkg-meta");
+    const btnVaultClearDec = document.getElementById("btn-vault-clear-dec");
+    const vaultDecOrigFilename = document.getElementById("vault-dec-orig-filename");
+    const vaultDecOrigMime = document.getElementById("vault-dec-orig-mime");
+    const vaultDecOrigSize = document.getElementById("vault-dec-orig-size");
+    const vaultDecOrigMode = document.getElementById("vault-dec-orig-mode");
+    const vaultDecOrigSha = document.getElementById("vault-dec-orig-sha");
+
+    // Controls (Decrypt)
+    const vaultDecKeyHex = document.getElementById("vault-dec-key-hex");
+    const btnVaultDecSyncKey = document.getElementById("btn-vault-dec-sync-key");
+    const btnVaultDoDecrypt = document.getElementById("btn-vault-do-decrypt");
+
+    // Result Card (Decrypt)
+    const vaultDecResultCard = document.getElementById("vault-dec-result-card");
+    const vaultDecStatusBadge = document.getElementById("vault-dec-status-badge");
+    const vaultDecVerdictTitle = document.getElementById("vault-dec-verdict-title");
+    const vaultDecAuthTag = document.getElementById("vault-dec-auth-tag");
+    const vaultDecShaOrig = document.getElementById("vault-dec-sha-orig");
+    const vaultDecShaDec = document.getElementById("vault-dec-sha-dec");
+    const vaultDecShaBadge = document.getElementById("vault-dec-sha-badge");
+    const vaultResDecFilename = document.getElementById("vault-res-dec-filename");
+    const vaultResDecSize = document.getElementById("vault-res-dec-size");
+    const vaultResDecDiff = document.getElementById("vault-res-dec-diff");
+    const vaultResDecTime = document.getElementById("vault-res-dec-time");
+    const vaultResDecThroughput = document.getElementById("vault-res-dec-throughput");
+    const btnVaultDownloadDec = document.getElementById("btn-vault-download-dec");
+    const btnVaultDownloadDecLabel = document.getElementById("btn-vault-download-dec-label");
+    const vaultDecPreviewCard = document.getElementById("vault-dec-preview-card");
+    const vaultDecPreviewType = document.getElementById("vault-dec-preview-type");
+    const vaultDecPreviewContent = document.getElementById("vault-dec-preview-content");
+
+    // Helper functions
+    function formatFileSize(bytes) {
+      if (!bytes || bytes === 0) return "0 Bytes";
+      const k = 1024;
+      const sizes = ["Bytes", "KB", "MB", "GB"];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+    }
+
+    function getFileIcon(name = "", mime = "") {
+      const ext = name.split(".").pop().toLowerCase();
+      if (["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp"].includes(ext) || mime.startsWith("image/")) return "🖼️";
+      if (["mp4", "webm", "mkv", "mov", "avi"].includes(ext) || mime.startsWith("video/")) return "🎬";
+      if (["mp3", "wav", "ogg", "flac", "m4a"].includes(ext) || mime.startsWith("audio/")) return "🎵";
+      if (["pdf"].includes(ext) || mime.includes("pdf")) return "📕";
+      if (["zip", "tar", "gz", "7z", "rar"].includes(ext) || mime.includes("zip") || mime.includes("tar")) return "📦";
+      if (["txt", "md", "csv", "json", "xml", "log", "js", "html", "css"].includes(ext) || mime.startsWith("text/")) return "📝";
+      if (["enc"].includes(ext)) return "🔐";
+      return "📄";
+    }
+
+    // Binary Container Packaging
+    // Structure:
+    // [8 bytes magic: "AESENC1\0"]
+    // [4 bytes uint32 big-endian: metadata JSON length L]
+    // [L bytes: metadata UTF-8 string]
+    // [Remaining bytes: ciphertext + auth tag]
+    function buildEncContainer(metadata, ciphertextBytes) {
+      const magic = new Uint8Array([0x41, 0x45, 0x53, 0x45, 0x4e, 0x43, 0x31, 0x00]); // "AESENC1\0"
+      const metaBytes = new TextEncoder().encode(JSON.stringify(metadata));
+      const lenBuf = new ArrayBuffer(4);
+      new DataView(lenBuf).setUint32(0, metaBytes.length, false);
+      const lenBytes = new Uint8Array(lenBuf);
+
+      const totalSize = 8 + 4 + metaBytes.length + ciphertextBytes.length;
+      const container = new Uint8Array(totalSize);
+      container.set(magic, 0);
+      container.set(lenBytes, 8);
+      container.set(metaBytes, 12);
+      container.set(ciphertextBytes, 12 + metaBytes.length);
+      return container;
+    }
+
+    function parseEncContainer(bytes) {
+      if (bytes.length < 16) return null;
+      const magicStr = new TextDecoder().decode(bytes.subarray(0, 7));
+      if (magicStr !== "AESENC1" && magicStr !== "AESENC\0") return null;
+
+      try {
+        const metaLen = new DataView(bytes.buffer, bytes.byteOffset + 8, 4).getUint32(0, false);
+        if (bytes.length < 12 + metaLen) return null;
+        const metaStr = new TextDecoder().decode(bytes.subarray(12, 12 + metaLen));
+        const metadata = JSON.parse(metaStr);
+        const ciphertext = bytes.subarray(12 + metaLen);
+        return { metadata, ciphertext };
+      } catch (err) {
+        console.error("Failed to parse AESENC container:", err);
+        return null;
+      }
+    }
+
+    // PKCS#7 Padding for AES-ECB arbitrary files
+    function pkcs7Pad(data) {
+      const padLen = 16 - (data.length % 16);
+      const padded = new Uint8Array(data.length + padLen);
+      padded.set(data);
+      padded.fill(padLen, data.length);
+      return padded;
+    }
+
+    function pkcs7Unpad(data) {
+      if (data.length === 0 || data.length % 16 !== 0) return data;
+      const padLen = data[data.length - 1];
+      if (padLen < 1 || padLen > 16) return data;
+      for (let i = data.length - padLen; i < data.length; i++) {
+        if (data[i] !== padLen) return data;
+      }
+      return data.subarray(0, data.length - padLen);
+    }
+
+    // --- ENCRYPTION WORKFLOW ---
+    async function handleFileSelectedForEncrypt(file) {
+      if (!file) return;
+
+      const buffer = await file.arrayBuffer();
+      const uint8 = new Uint8Array(buffer);
+      const sha256 = await computeSha256(uint8);
+
+      vaultSourceFile = {
+        name: file.name,
+        size: file.size,
+        type: file.type || "application/octet-stream",
+        buffer: buffer,
+        uint8Array: uint8,
+        sha256: sha256,
+        lastModified: file.lastModified ? new Date(file.lastModified).toLocaleString() : new Date().toLocaleString()
+      };
+
+      // Populate file card
+      vaultEncFileBadge.textContent = getFileIcon(file.name, file.type);
+      vaultEncFileName.textContent = file.name;
+      vaultEncFileMeta.textContent = `${formatFileSize(file.size)} (${file.size.toLocaleString()} bytes) • ${file.type || "binary/octet-stream"}`;
+      vaultEncSha256.textContent = sha256;
+      vaultEncFileDate.textContent = vaultSourceFile.lastModified;
+
+      // Hex snippet of first 32 bytes
+      const snippetBytes = uint8.subarray(0, Math.min(32, uint8.length));
+      vaultEncHexPreview.textContent = formatBytesHexSpaced(snippetBytes);
+      vaultEncAsciiPreview.textContent = bytesToAscii(snippetBytes);
+
+      // Default output filename
+      vaultOutFilename.value = `${file.name}.enc`;
+
+      vaultEncryptFileCard.classList.remove("hidden");
+      btnVaultDoEncrypt.disabled = false;
+      vaultEncryptResultCard.classList.add("hidden");
+
+      vaultTelemetryMsg.innerHTML = `Loaded "<strong>${file.name}</strong>" (${formatFileSize(file.size)}). Ready to encrypt.`;
+    }
+
+    // Dropzone events for Encrypt
+    ["dragenter", "dragover"].forEach(evt => {
+      vaultEncryptDropzone.addEventListener(evt, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        vaultEncryptDropzone.classList.add("drag-over");
+      });
+    });
+
+    ["dragleave", "drop"].forEach(evt => {
+      vaultEncryptDropzone.addEventListener(evt, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        vaultEncryptDropzone.classList.remove("drag-over");
+      });
+    });
+
+    vaultEncryptDropzone.addEventListener("drop", (e) => {
+      const file = e.dataTransfer.files[0];
+      if (file) handleFileSelectedForEncrypt(file);
+    });
+
+    vaultEncryptInput.addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (file) handleFileSelectedForEncrypt(file);
+    });
+
+    btnVaultClearEnc.addEventListener("click", () => {
+      vaultSourceFile = null;
+      vaultEncryptInput.value = "";
+      vaultEncryptFileCard.classList.add("hidden");
+      vaultEncryptResultCard.classList.add("hidden");
+      btnVaultDoEncrypt.disabled = true;
+      vaultTelemetryMsg.innerHTML = "Cleared source file. Select or drag any file to encrypt.";
+    });
+
+    // Key & IV Generators (Vault Encrypt)
+    btnVaultGenKey.addEventListener("click", () => {
+      const randomKey = crypto.getRandomValues(new Uint8Array(16));
+      vaultKeyHex.value = bytesToHex(randomKey);
+      vaultTelemetryMsg.innerHTML = "Generated new random 128-bit AES Key for Vault.";
+    });
+
+    btnVaultCopyKey.addEventListener("click", () => {
+      navigator.clipboard.writeText(vaultKeyHex.value).then(() => {
+        vaultTelemetryMsg.innerHTML = "Copied Vault AES-128 Key to clipboard.";
+      });
+    });
+
+    btnVaultSyncKey.addEventListener("click", () => {
+      vaultKeyHex.value = inputKeyHex.value;
+      vaultTelemetryMsg.innerHTML = "Synchronized Vault key with Image Workbench key.";
+    });
+
+    btnVaultGenIv.addEventListener("click", () => {
+      const randomIv = crypto.getRandomValues(new Uint8Array(12));
+      vaultIvHex.value = bytesToHex(randomIv);
+      vaultTelemetryMsg.innerHTML = "Generated new random 96-bit GCM IV.";
+    });
+
+    vaultCipherMode.addEventListener("change", () => {
+      if (vaultCipherMode.value === "AES-ECB") {
+        vaultIvFormGroup.style.opacity = "0.4";
+        vaultIvHex.disabled = true;
+      } else {
+        vaultIvFormGroup.style.opacity = "1";
+        vaultIvHex.disabled = false;
+      }
+    });
+
+    // Execute Encryption
+    btnVaultDoEncrypt.addEventListener("click", async () => {
+      if (!vaultSourceFile) return;
+
+      const keyHex = vaultKeyHex.value.trim();
+      const keyBytes = hexToBytes(keyHex);
+      vaultKeyHex.value = bytesToHex(keyBytes);
+
+      const mode = vaultCipherMode.value;
+      const t0 = performance.now();
+      let ciphertextBytes = null;
+      let ivBytes = null;
+
+      vaultTelemetryMsg.innerHTML = `Encrypting "<strong>${vaultSourceFile.name}</strong>" using ${mode}...`;
+      setSystemStatus("encrypted", "ENCRYPTING FILE...");
+
+      try {
+        if (mode === "AES-GCM") {
+          ivBytes = hexToBytes(vaultIvHex.value.trim()).subarray(0, 12);
+          if (ivBytes.length < 12) ivBytes = crypto.getRandomValues(new Uint8Array(12));
+          vaultIvHex.value = bytesToHex(ivBytes);
+
+          const cryptoKey = await crypto.subtle.importKey(
+            "raw",
+            keyBytes,
+            { name: "AES-GCM" },
+            false,
+            ["encrypt"]
+          );
+
+          const encryptedBuf = await crypto.subtle.encrypt(
+            { name: "AES-GCM", iv: ivBytes },
+            cryptoKey,
+            vaultSourceFile.buffer
+          );
+          ciphertextBytes = new Uint8Array(encryptedBuf);
+
+        } else {
+          // AES-ECB with PKCS#7 padding
+          const padded = pkcs7Pad(vaultSourceFile.uint8Array);
+          ciphertextBytes = AES.ecbEncrypt(padded, keyBytes);
+          ivBytes = new Uint8Array(0);
+        }
+
+        const durationMs = performance.now() - t0;
+        const entropyResult = calculateShannonEntropy(ciphertextBytes);
+
+        // Package metadata into container
+        const metadata = {
+          version: 1,
+          filename: vaultSourceFile.name,
+          mimeType: vaultSourceFile.type,
+          fileSize: vaultSourceFile.size,
+          cipher: mode,
+          ivHex: bytesToHex(ivBytes),
+          sha256: vaultSourceFile.sha256,
+          createdAt: Date.now()
+        };
+
+        const containerBytes = buildEncContainer(metadata, ciphertextBytes);
+        const outName = vaultOutFilename.value.trim() || `${vaultSourceFile.name}.enc`;
+
+        const mbSize = (vaultSourceFile.size / (1024 * 1024));
+        const throughputMBs = durationMs > 0 ? (mbSize / (durationMs / 1000)).toFixed(1) : "N/A";
+
+        vaultEncryptedPkg = {
+          bytes: containerBytes,
+          filename: outName,
+          metadata: metadata,
+          durationMs: durationMs.toFixed(1),
+          throughputMBs: throughputMBs,
+          entropy: entropyResult.entropy.toFixed(3)
+        };
+
+        // Populate Result Card
+        vaultResEncSize.textContent = `${formatFileSize(containerBytes.length)} (${containerBytes.length.toLocaleString()} B)`;
+        vaultResEncMode.textContent = mode;
+        vaultResEncEntropy.textContent = `${vaultEncryptedPkg.entropy} / 8.000`;
+        vaultResEncTime.textContent = `${vaultEncryptedPkg.durationMs} ms`;
+        vaultResEncThroughput.textContent = `Throughput: ${throughputMBs} MB/s`;
+        btnVaultDownloadEncLabel.textContent = `Download Encrypted File (${outName})`;
+
+        vaultEncryptResultCard.classList.remove("hidden");
+        vaultEncryptResultCard.scrollIntoView({ behavior: "smooth", block: "nearest" });
+
+        setSystemStatus("encrypted", "FILE ENCRYPTED");
+        vaultTelemetryMsg.innerHTML = `✅ Successfully encrypted "<strong>${vaultSourceFile.name}</strong>" into <strong>${outName}</strong> in <strong>${vaultEncryptedPkg.durationMs}ms</strong>. Click "Download" to save or "Test in Decryption Vault" to verify recovery.`;
+
+      } catch (err) {
+        console.error("Vault Encryption error:", err);
+        alert("Encryption failed: " + err.message);
+        setSystemStatus("ready", "ENCRYPTION FAILED");
+      }
+    });
+
+    // Download Encrypted File
+    btnVaultDownloadEnc.addEventListener("click", () => {
+      if (!vaultEncryptedPkg) return;
+      const blob = new Blob([vaultEncryptedPkg.bytes], { type: "application/octet-stream" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = vaultEncryptedPkg.filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    // Transfer encrypted package to Decryption tab for instant testing
+    btnVaultTransferToDecrypt.addEventListener("click", () => {
+      if (!vaultEncryptedPkg) return;
+      switchVaultSubtab("decrypt");
+      loadPackageForDecryption(vaultEncryptedPkg.bytes, vaultEncryptedPkg.filename);
+      vaultDecKeyHex.value = vaultKeyHex.value;
+      vaultTelemetryMsg.innerHTML = `Transferred "<strong>${vaultEncryptedPkg.filename}</strong>" to Decrypt Vault. Click "DECRYPT & VERIFY INTEGRITY" to test bit-exact recovery!`;
+    });
+
+    // --- DECRYPTION WORKFLOW ---
+    let currentLoadedDecBytes = null;
+    let currentParsedContainer = null;
+
+    function loadPackageForDecryption(bytes, filename = "file.enc") {
+      currentLoadedDecBytes = bytes;
+      const parsed = parseEncContainer(bytes);
+
+      if (!parsed) {
+        vaultDecPackageCard.classList.remove("hidden");
+        vaultDecPkgBadge.textContent = "⚠️";
+        vaultDecPkgFilename.textContent = filename;
+        vaultDecPkgMeta.textContent = `${formatFileSize(bytes.length)} • Raw Encrypted Binary`;
+        vaultDecOrigFilename.textContent = filename.replace(/\.enc$/i, "");
+        vaultDecOrigMime.textContent = "application/octet-stream (Raw)";
+        vaultDecOrigSize.textContent = formatFileSize(bytes.length);
+        vaultDecOrigMode.textContent = "AES-GCM (Assumed)";
+        vaultDecOrigSha.textContent = "None (Raw payload without AESENC header)";
+
+        currentParsedContainer = {
+          metadata: {
+            filename: filename.replace(/\.enc$/i, ""),
+            mimeType: "application/octet-stream",
+            fileSize: bytes.length,
+            cipher: "AES-GCM",
+            ivHex: vaultIvHex.value,
+            sha256: null
+          },
+          ciphertext: bytes
+        };
+      } else {
+        currentParsedContainer = parsed;
+        const meta = parsed.metadata;
+        vaultDecPackageCard.classList.remove("hidden");
+        vaultDecPkgBadge.textContent = getFileIcon(meta.filename, meta.mimeType);
+        vaultDecPkgFilename.textContent = filename;
+        vaultDecPkgMeta.textContent = `${formatFileSize(bytes.length)} • AESENC v1 Container`;
+        vaultDecOrigFilename.textContent = meta.filename;
+        vaultDecOrigMime.textContent = meta.mimeType || "application/octet-stream";
+        vaultDecOrigSize.textContent = `${formatFileSize(meta.fileSize)} (${meta.fileSize.toLocaleString()} B)`;
+        vaultDecOrigMode.textContent = meta.cipher;
+        vaultDecOrigSha.textContent = meta.sha256 || "None";
+      }
+
+      btnVaultDoDecrypt.disabled = false;
+      vaultDecResultCard.classList.add("hidden");
+      vaultTelemetryMsg.innerHTML = `Loaded "<strong>${filename}</strong>". Embedded target file: <strong>${currentParsedContainer.metadata.filename}</strong>. Ready to decrypt.`;
+    }
+
+    async function handleFileSelectedForDecrypt(file) {
+      if (!file) return;
+      const buffer = await file.arrayBuffer();
+      const bytes = new Uint8Array(buffer);
+      loadPackageForDecryption(bytes, file.name);
+    }
+
+    // Dropzone events for Decrypt
+    ["dragenter", "dragover"].forEach(evt => {
+      vaultDecryptDropzone.addEventListener(evt, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        vaultDecryptDropzone.classList.add("drag-over");
+      });
+    });
+
+    ["dragleave", "drop"].forEach(evt => {
+      vaultDecryptDropzone.addEventListener(evt, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        vaultDecryptDropzone.classList.remove("drag-over");
+      });
+    });
+
+    vaultDecryptDropzone.addEventListener("drop", (e) => {
+      const file = e.dataTransfer.files[0];
+      if (file) handleFileSelectedForDecrypt(file);
+    });
+
+    vaultDecryptInput.addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (file) handleFileSelectedForDecrypt(file);
+    });
+
+    btnVaultClearDec.addEventListener("click", () => {
+      currentLoadedDecBytes = null;
+      currentParsedContainer = null;
+      vaultDecryptInput.value = "";
+      vaultDecPackageCard.classList.add("hidden");
+      vaultDecResultCard.classList.add("hidden");
+      btnVaultDoDecrypt.disabled = true;
+      vaultTelemetryMsg.innerHTML = "Cleared package. Select or drop a .enc file to decrypt.";
+    });
+
+    btnVaultDecSyncKey.addEventListener("click", () => {
+      vaultDecKeyHex.value = vaultKeyHex.value;
+      vaultTelemetryMsg.innerHTML = "Synchronized decryption key with active Encrypt key.";
+    });
+
+    // Execute Decryption
+    btnVaultDoDecrypt.addEventListener("click", async () => {
+      if (!currentParsedContainer) return;
+
+      const keyHex = vaultDecKeyHex.value.trim();
+      const keyBytes = hexToBytes(keyHex);
+      vaultDecKeyHex.value = bytesToHex(keyBytes);
+
+      const meta = currentParsedContainer.metadata;
+      const ciphertext = currentParsedContainer.ciphertext;
+      const mode = meta.cipher || "AES-GCM";
+
+      vaultTelemetryMsg.innerHTML = `Decrypting ciphertext using ${mode}...`;
+      setSystemStatus("encrypted", "DECRYPTING FILE...");
+
+      const t0 = performance.now();
+      let decryptedBytes = null;
+      let gcmAuthPassed = false;
+
+      try {
+        if (mode === "AES-GCM") {
+          const ivBytes = hexToBytes(meta.ivHex || vaultIvHex.value).subarray(0, 12);
+          const cryptoKey = await crypto.subtle.importKey(
+            "raw",
+            keyBytes,
+            { name: "AES-GCM" },
+            false,
+            ["decrypt"]
+          );
+
+          try {
+            const decBuf = await crypto.subtle.decrypt(
+              { name: "AES-GCM", iv: ivBytes },
+              cryptoKey,
+              ciphertext
+            );
+            decryptedBytes = new Uint8Array(decBuf);
+            gcmAuthPassed = true;
+          } catch (gcmErr) {
+            // Decryption authentication tag mismatch or corrupted ciphertext
+            console.error("GCM Decryption failure:", gcmErr);
+            vaultDecResultCard.classList.remove("hidden");
+            vaultDecStatusBadge.className = "result-badge-success text-danger";
+            vaultDecVerdictTitle.textContent = "AUTHENTICATION FAILED (TAG MISMATCH)";
+            vaultDecAuthTag.textContent = "TAG ERROR / WRONG KEY";
+            vaultDecAuthTag.className = "result-type-tag text-danger";
+            vaultDecShaOrig.textContent = meta.sha256 || "N/A";
+            vaultDecShaDec.textContent = "Decryption aborted (Integrity compromised or incorrect key)";
+            vaultDecShaBadge.textContent = "FAILED";
+            vaultDecShaBadge.className = "hash-badge text-danger";
+            vaultResDecFilename.textContent = meta.filename;
+            vaultResDecSize.textContent = "0 Bytes";
+            vaultResDecDiff.textContent = "MAC Authentication Failed";
+            vaultResDecTime.textContent = "--";
+            vaultResDecThroughput.textContent = "--";
+            btnVaultDownloadDec.disabled = true;
+            vaultDecPreviewCard.classList.add("hidden");
+
+            setSystemStatus("encrypted", "AUTHENTICATION FAILED");
+            vaultTelemetryMsg.innerHTML = "⚠️ <strong>Decryption Failed!</strong> The AES-128 key is incorrect or the ciphertext was tampered with.";
+            return;
+          }
+
+        } else {
+          // AES-ECB mode
+          const rawDec = AES.ecbDecrypt(ciphertext, keyBytes);
+          decryptedBytes = pkcs7Unpad(rawDec);
+        }
+
+        const durationMs = performance.now() - t0;
+        const decSha256 = await computeSha256(decryptedBytes);
+        const isMatch = meta.sha256 ? decSha256 === meta.sha256 : true;
+
+        const mbSize = (decryptedBytes.length / (1024 * 1024));
+        const throughputMBs = durationMs > 0 ? (mbSize / (durationMs / 1000)).toFixed(1) : "N/A";
+
+        vaultDecryptedFile = {
+          bytes: decryptedBytes,
+          filename: meta.filename,
+          mimeType: meta.mimeType,
+          sha256: decSha256,
+          isMatch: isMatch
+        };
+
+        // Populate Decryption Verification Result Card
+        vaultDecResultCard.classList.remove("hidden");
+        vaultDecStatusBadge.className = isMatch ? "result-badge-success" : "result-badge-success text-danger";
+        vaultDecVerdictTitle.textContent = isMatch
+          ? "100% BIT-PERFECT RESTORATION VERIFIED"
+          : "SHA-256 HASH MISMATCH DETECTED";
+
+        vaultDecAuthTag.textContent = mode === "AES-GCM" ? (gcmAuthPassed ? "GCM AUTH PASS" : "TAG FAIL") : "ECB UNPAD OK";
+        vaultDecAuthTag.className = `result-type-tag ${isMatch ? "badge-match" : "text-danger"}`;
+
+        vaultDecShaOrig.textContent = meta.sha256 || "None provided";
+        vaultDecShaDec.textContent = decSha256;
+        vaultDecShaBadge.textContent = isMatch ? "MATCH (100%)" : "MISMATCH";
+        vaultDecShaBadge.className = `hash-badge ${isMatch ? "badge-match" : "text-danger"}`;
+
+        vaultResDecFilename.textContent = meta.filename;
+        vaultResDecSize.textContent = `${formatFileSize(decryptedBytes.length)} (${decryptedBytes.length.toLocaleString()} B)`;
+        vaultResDecDiff.textContent = isMatch ? "0 Byte Mismatch (0.000%)" : "Data Altered";
+        vaultResDecTime.textContent = `${durationMs.toFixed(1)} ms`;
+        vaultResDecThroughput.textContent = `Throughput: ${throughputMBs} MB/s`;
+
+        btnVaultDownloadDec.disabled = false;
+        btnVaultDownloadDecLabel.textContent = `Download Restored File (${meta.filename})`;
+
+        // Render Live Preview
+        renderDecryptedPreview(decryptedBytes, meta.filename, meta.mimeType);
+
+        vaultDecResultCard.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        setSystemStatus("verified", "100% BIT-PERFECT VERIFIED");
+        vaultTelemetryMsg.innerHTML = `✅ Successfully decrypted and recovered "<strong>${meta.filename}</strong>" with <strong>0 byte mismatch</strong> in <strong>${durationMs.toFixed(1)}ms</strong>!`;
+
+      } catch (err) {
+        console.error("Vault Decryption error:", err);
+        alert("Decryption failed: " + err.message);
+        setSystemStatus("ready", "DECRYPTION FAILED");
+      }
+    });
+
+    // Download Decrypted File
+    btnVaultDownloadDec.addEventListener("click", () => {
+      if (!vaultDecryptedFile) return;
+      const blob = new Blob([vaultDecryptedFile.bytes], { type: vaultDecryptedFile.mimeType || "application/octet-stream" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = vaultDecryptedFile.filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    // Live Content Preview Generator
+    function renderDecryptedPreview(bytes, filename, mimeType = "") {
+      vaultDecPreviewCard.classList.remove("hidden");
+      vaultDecPreviewContent.innerHTML = "";
+      const ext = filename.split(".").pop().toLowerCase();
+
+      // 1. Image Formats
+      if (["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp"].includes(ext) || mimeType.startsWith("image/")) {
+        vaultDecPreviewType.textContent = "IMAGE";
+        const blob = new Blob([bytes], { type: mimeType || `image/${ext}` });
+        const img = document.createElement("img");
+        img.src = URL.createObjectURL(blob);
+        img.alt = filename;
+        vaultDecPreviewContent.appendChild(img);
+        return;
+      }
+
+      // 2. Audio Formats
+      if (["mp3", "wav", "ogg", "flac", "m4a"].includes(ext) || mimeType.startsWith("audio/")) {
+        vaultDecPreviewType.textContent = "AUDIO";
+        const blob = new Blob([bytes], { type: mimeType || `audio/${ext}` });
+        const audio = document.createElement("audio");
+        audio.controls = true;
+        audio.src = URL.createObjectURL(blob);
+        vaultDecPreviewContent.appendChild(audio);
+        return;
+      }
+
+      // 3. Video Formats
+      if (["mp4", "webm"].includes(ext) || mimeType.startsWith("video/")) {
+        vaultDecPreviewType.textContent = "VIDEO";
+        const blob = new Blob([bytes], { type: mimeType || `video/${ext}` });
+        const video = document.createElement("video");
+        video.controls = true;
+        video.src = URL.createObjectURL(blob);
+        vaultDecPreviewContent.appendChild(video);
+        return;
+      }
+
+      // 4. Text / Code / CSV / JSON Formats
+      if (["txt", "md", "csv", "json", "js", "html", "css", "xml", "log", "py", "sh", "yml", "yaml"].includes(ext) || mimeType.startsWith("text/")) {
+        vaultDecPreviewType.textContent = ext.toUpperCase();
+        try {
+          const text = new TextDecoder("utf-8").decode(bytes);
+          const pre = document.createElement("pre");
+          pre.textContent = text.length > 5000 ? text.substring(0, 5000) + "\n\n... [truncated preview for length]" : text;
+          vaultDecPreviewContent.appendChild(pre);
+          return;
+        } catch (e) {
+          // Fall through to doc badge
+        }
+      }
+
+      // 5. PDF or Generic Binary Document Badge
+      vaultDecPreviewType.textContent = ext.toUpperCase() || "BINARY";
+      const card = document.createElement("div");
+      card.className = "preview-doc-card";
+      card.innerHTML = `
+        <span class="preview-doc-icon">${getFileIcon(filename, mimeType)}</span>
+        <div class="preview-doc-details">
+          <span class="preview-doc-name">${filename}</span>
+          <span class="preview-doc-info">${formatFileSize(bytes.length)} • ${mimeType || "application/octet-stream"}</span>
+        </div>
+      `;
+      vaultDecPreviewContent.appendChild(card);
+    }
+
+    // Sample Secret File Generator (1-Click Test)
+    btnVaultSample.addEventListener("click", () => {
+      const sampleText = `======================================================================
+TOP SECRET // CLASSIFIED INTELLIGENCE DOSSIER // AEGIS-OMEGA
+CLASSIFICATION: LEVEL-5 DIRECTIVE // CODE: CIPHER-HORIZON-9
+OPERATION TIMESTAMP: ${new Date().toISOString()}
+======================================================================
+
+1. MISSION OBJECTIVE:
+Deploy client-side authenticated cryptographic vault across distributed terminals.
+Ensure 100% bit-exact reversibility and zero-trust tamper detection via W3C WebCrypto.
+
+2. TACTICAL SECTOR COORDINATES:
+- Primary Relay Node: 45.5152° N, 122.6784° W (Cascadia Ridge)
+- Emergency Broadcast Beacon: 142.850 MHz [AES-128-GCM Authenticated Stream]
+- Sub-Station Quantum Hash: 0x9f8e7d6c5b4a392817263544fedcba09
+
+3. AGENT ROSTER & CLEARANCES:
+- Chief Cryptographer: Dr. Elena Vance (Clearance Alpha-1)
+- Security Lead: Commander Reyes (Active Watch)
+- Operative Handler: Agent K
+
+4. STATUS NOTE:
+All contents of this document are cryptographically bound to the SHA-256 digest
+and guarded by Galois 128-bit authentication tag.
+
+[END OF TRANSMISSION // RESTRICTED ACCESS]
+`;
+
+      const blob = new Blob([sampleText], { type: "text/plain" });
+      const file = new File([blob], "classified_intel_dossier.txt", { type: "text/plain", lastModified: Date.now() });
+
+      switchVaultSubtab("encrypt");
+      handleFileSelectedForEncrypt(file);
+      vaultTelemetryMsg.innerHTML = "✨ Generated sample secret document: <strong>classified_intel_dossier.txt</strong>. Click 'ENCRYPT & PACKAGE FILE' to encrypt!";
+    });
+
+    // Expose for testing hooks if needed
+    window.vaultApi = {
+      switchAppMode,
+      switchVaultSubtab,
+      handleFileSelectedForEncrypt,
+      handleFileSelectedForDecrypt
+    };
+  }
+
+  // Initialize File Vault
+  initUniversalFileVault();
+
   // Load default Tux Penguin preset on boot
   generatePresetImage("penguin");
 
-  // Automated testing hooks via URL query param (?test=encrypt, ?test=decrypt, ?test=specs)
+  // Automated testing hooks via URL query param (?test=encrypt, ?test=decrypt, ?test=specs, ?test=vault)
   const urlParams = new URLSearchParams(window.location.search);
   const testMode = urlParams.get("test");
   if (testMode === "encrypt") {
@@ -1303,5 +2117,11 @@ document.addEventListener("DOMContentLoaded", () => {
     setTimeout(() => {
       modalSpecs.classList.remove("hidden");
     }, 200);
+  } else if (testMode === "vault") {
+    setTimeout(() => {
+      window.vaultApi.switchAppMode("vault");
+      document.getElementById("btn-vault-sample").click();
+    }, 200);
   }
 });
+

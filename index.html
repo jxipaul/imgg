@@ -32,8 +32,29 @@
         </div>
       </div>
 
-      <!-- Preset Selector Strip -->
-      <div class="topbar-center">
+      <!-- Topbar Mode Switcher -->
+      <nav class="topbar-mode-switcher" role="tablist" aria-label="Workbench Operations">
+        <button class="mode-tab-btn active" id="tab-mode-images" role="tab" aria-selected="true" data-mode="images" title="Interactive visual analysis of AES cipher modes on raster images">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+            <circle cx="8.5" cy="8.5" r="1.5"></circle>
+            <polyline points="21 15 16 10 5 21"></polyline>
+          </svg>
+          <span>Image Cryptanalysis</span>
+        </button>
+        <button class="mode-tab-btn" id="tab-mode-vault" role="tab" aria-selected="false" data-mode="vault" title="Encrypt and decrypt any file format with lossless authenticated recovery">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            <circle cx="12" cy="16" r="1"></circle>
+          </svg>
+          <span>Universal File Vault</span>
+          <span class="mode-badge-new">NEW</span>
+        </button>
+      </nav>
+
+      <!-- Preset Selector Strip (Active in Image mode) -->
+      <div class="topbar-center" id="topbar-presets-container">
         <span class="toolbar-label">SAMPLE PRESETS:</span>
         <div class="preset-selector" role="group" aria-label="Sample image presets">
           <button class="preset-btn active" data-preset="penguin" id="btn-preset-penguin" title="Classic Tux Linux Penguin - Maximum ECB pattern leak">
@@ -56,9 +77,9 @@
 
       <!-- Topbar Actions -->
       <div class="topbar-right">
-        <label for="image-upload" class="action-link-btn" title="Upload custom image (PNG/JPG/WEBP) or paste from clipboard (Ctrl+V)">
+        <label for="image-upload" class="action-link-btn" id="action-btn-image-upload" title="Upload custom image (PNG/JPG/WEBP) or paste from clipboard (Ctrl+V)">
           <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-          Upload
+          Upload Image
           <input type="file" id="image-upload" accept="image/*">
         </label>
         <button class="action-link-btn" id="btn-export-audit" title="Export cryptographic benchmark and verification log as JSON">
@@ -71,6 +92,9 @@
         </button>
       </div>
     </header>
+
+    <!-- VIEW 1: IMAGE CRYPTANALYSIS WORKBENCH -->
+    <div class="workbench-view active" id="view-image-workbench">
 
     <!-- Workbench Parameters & Primary Execution Ribbon -->
     <section class="workbench-toolbar">
@@ -549,9 +573,419 @@
           </div>
         </div>
       </div>
-    </section>
+    </div>
+    <!-- /VIEW 1: IMAGE CRYPTANALYSIS WORKBENCH -->
 
-    <!-- Cryptographic Specifications & Theory Modal -->
+    <!-- VIEW 2: UNIVERSAL FILE ENCRYPTION & DECRYPTION VAULT -->
+    <div class="workbench-view hidden" id="view-file-vault">
+      
+      <!-- Vault Sub-Toolbar & Operational Mode Ribbon -->
+      <div class="vault-toolbar">
+        <div class="vault-toolbar-info">
+          <div class="vault-title-group">
+            <div class="vault-icon-badge">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                <circle cx="12" cy="16" r="1.5"></circle>
+              </svg>
+            </div>
+            <div>
+              <h2 class="vault-main-title">UNIVERSAL FILE ENCRYPTION & RECOVERY VAULT</h2>
+              <p class="vault-subtitle">Client-side authenticated AES encryption for any file format (.pdf, .docx, .zip, .png, .mp4, binaries) with lossless bit-exact recovery</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="vault-tabs-group" role="tablist">
+          <button class="vault-subtab-btn active" id="btn-subtab-encrypt" role="tab" aria-selected="true">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+            <span>🔒 Encrypt Any File</span>
+          </button>
+          <button class="vault-subtab-btn" id="btn-subtab-decrypt" role="tab" aria-selected="false">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path></svg>
+            <span>🔓 Decrypt & Verify (.enc)</span>
+          </button>
+          <button class="vault-sample-btn" id="btn-vault-sample" title="Generate a sample confidential document for immediate 1-click test">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+            <span>✨ Load Sample Secret File</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Vault Telemetry Banner -->
+      <div class="telemetry-banner vault-telemetry" id="vault-telemetry-banner">
+        <div class="banner-lead">
+          <svg class="telemetry-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+          <span class="telemetry-msg" id="vault-telemetry-msg">Ready. Select or drag any file into the Encrypt dropzone to begin client-side encryption.</span>
+        </div>
+        <div class="banner-metrics">
+          <span class="metric-item">Container: <strong>AESENC v1 (Binary + Metadata)</strong></span>
+          <span class="metric-item">Standard: <strong>NIST SP 800-38D (AES-GCM)</strong></span>
+          <span class="metric-item">Integrity: <strong>SHA-256 + 128b GHASH Tag</strong></span>
+        </div>
+      </div>
+
+      <!-- SUBVIEW 1: ENCRYPT ANY FILE -->
+      <div class="vault-subview active" id="vault-subview-encrypt">
+        <div class="vault-dual-layout">
+
+          <!-- Left Column: Source File Ingestion & Drag Drop -->
+          <div class="vault-card-col">
+            <!-- Dropzone -->
+            <div class="vault-dropzone" id="vault-encrypt-dropzone">
+              <input type="file" id="vault-encrypt-input" class="vault-file-hidden">
+              <div class="dropzone-content">
+                <div class="dropzone-icon-ring">
+                  <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="17 8 12 3 7 8"></polyline>
+                    <line x1="12" y1="3" x2="12" y2="15"></line>
+                  </svg>
+                </div>
+                <h3 class="dropzone-title">Drop ANY File Here to Encrypt</h3>
+                <p class="dropzone-sub">or <span class="dropzone-link">click to browse</span> from your device</p>
+                <div class="dropzone-tags">
+                  <span class="drop-tag">.pdf</span>
+                  <span class="drop-tag">.docx</span>
+                  <span class="drop-tag">.zip</span>
+                  <span class="drop-tag">.png / .jpg</span>
+                  <span class="drop-tag">.mp4</span>
+                  <span class="drop-tag">.txt / .csv</span>
+                  <span class="drop-tag">Any Binary</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Ingested Source File Card -->
+            <div class="vault-meta-card hidden" id="vault-encrypt-file-card">
+              <div class="meta-card-head">
+                <div class="file-icon-badge" id="vault-enc-file-badge">📄</div>
+                <div class="file-name-info">
+                  <h4 class="vault-file-title" id="vault-enc-file-name">filename.ext</h4>
+                  <span class="vault-file-sub" id="vault-enc-file-meta">0 KB • application/octet-stream</span>
+                </div>
+                <button class="tool-btn-sm" id="btn-vault-clear-enc" title="Remove selected file">✕ Clear</button>
+              </div>
+
+              <div class="meta-card-body">
+                <div class="meta-data-row">
+                  <span class="meta-row-label">Plaintext SHA-256:</span>
+                  <span class="meta-row-val font-mono" id="vault-enc-sha256">Computing...</span>
+                </div>
+                <div class="meta-data-row">
+                  <span class="meta-row-label">Last Modified:</span>
+                  <span class="meta-row-val font-mono" id="vault-enc-file-date">--</span>
+                </div>
+                <!-- Snippet Preview -->
+                <div class="snippet-preview-box">
+                  <div class="snippet-head">
+                    <span>Header Hex Bytes Preview</span>
+                    <span class="snippet-tag">First 32 Bytes</span>
+                  </div>
+                  <div class="snippet-hex font-mono" id="vault-enc-hex-preview">-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --</div>
+                  <div class="snippet-ascii font-mono" id="vault-enc-ascii-preview">................</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Column: Cipher Parameters & Output Actions -->
+          <div class="vault-card-col">
+            <!-- Cipher Parameters -->
+            <div class="vault-config-card">
+              <div class="card-section-head">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                <h3>Encryption Security Parameters</h3>
+              </div>
+
+              <div class="vault-form-grid">
+                <!-- Cipher Mode -->
+                <div class="vault-form-group">
+                  <label class="param-label" for="vault-cipher-mode">
+                    <span>OPERATIONAL CIPHER MODE</span>
+                    <span class="param-meta">NIST APPROVED</span>
+                  </label>
+                  <select id="vault-cipher-mode" class="vault-select">
+                    <option value="AES-GCM" selected>AES-128-GCM (Authenticated Stream + 96b IV + 128b Tag — Recommended)</option>
+                    <option value="AES-ECB">AES-128-ECB (Independent Block Cipher + PKCS#7 Padding — Educational)</option>
+                  </select>
+                </div>
+
+                <!-- AES Key Input -->
+                <div class="vault-form-group">
+                  <label class="param-label" for="vault-key-hex">
+                    <span>AES-128 ENCRYPTION KEY (HEX)</span>
+                    <span class="param-meta">16 BYTES / 128 BITS</span>
+                  </label>
+                  <div class="param-input-group">
+                    <input type="text" id="vault-key-hex" class="hex-input font-mono" value="2b7e151628aed2a6abf7158809cf4f3c" maxlength="32" spellcheck="false">
+                    <button class="tool-btn icon-btn" id="btn-vault-gen-key" title="Generate Cryptographically Random 128-bit Key">
+                      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="5"></rect><circle cx="8" cy="8" r="1.5"></circle><circle cx="16" cy="16" r="1.5"></circle><circle cx="12" cy="12" r="1.5"></circle><circle cx="16" cy="8" r="1.5"></circle><circle cx="8" cy="16" r="1.5"></circle></svg>
+                    </button>
+                    <button class="tool-btn icon-btn" id="btn-vault-copy-key" title="Copy Key to Clipboard">
+                      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                    </button>
+                    <button class="tool-btn icon-btn" id="btn-vault-sync-key" title="Sync Key with Image Workbench">
+                      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- IV Nonce (GCM) -->
+                <div class="vault-form-group" id="vault-iv-form-group">
+                  <label class="param-label" for="vault-iv-hex">
+                    <span>GCM INITIALIZATION VECTOR / NONCE (HEX)</span>
+                    <span class="param-meta">12 BYTES / 96 BITS</span>
+                  </label>
+                  <div class="param-input-group">
+                    <input type="text" id="vault-iv-hex" class="hex-input readonly-input font-mono" value="e02f9c4d81a37b15690dc2e4" maxlength="24" readonly spellcheck="false">
+                    <button class="tool-btn icon-btn" id="btn-vault-gen-iv" title="Regenerate Random 96-bit IV">
+                      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Output Container Filename -->
+                <div class="vault-form-group">
+                  <label class="param-label" for="vault-out-filename">
+                    <span>OUTPUT CONTAINER FILENAME (.ENC)</span>
+                    <span class="param-meta">AUTONOMOUS PACKAGE</span>
+                  </label>
+                  <input type="text" id="vault-out-filename" class="text-input font-mono" value="encrypted_file.enc" spellcheck="false">
+                </div>
+              </div>
+
+              <!-- Encrypt Action Trigger -->
+              <div class="vault-action-row">
+                <button class="btn btn-execute-primary btn-vault-primary" id="btn-vault-do-encrypt" disabled>
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                  <span>ENCRYPT & PACKAGE FILE (.ENC)</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Encryption Result Card (Hidden until encrypted) -->
+            <div class="vault-result-card hidden" id="vault-encrypt-result-card">
+              <div class="result-card-head">
+                <div class="result-badge-success">
+                  <span class="result-dot"></span>
+                  <span>ENCRYPTION COMPLETE & CONTAINER PACKAGED</span>
+                </div>
+                <span class="result-type-tag">AESENC v1</span>
+              </div>
+
+              <div class="result-card-metrics">
+                <div class="vault-metric-box">
+                  <span class="metric-box-title">Container Size</span>
+                  <span class="metric-box-val font-mono" id="vault-res-enc-size">-- KB</span>
+                </div>
+                <div class="vault-metric-box">
+                  <span class="metric-box-title">Cipher Mode</span>
+                  <span class="metric-box-val font-mono text-success" id="vault-res-enc-mode">AES-GCM</span>
+                </div>
+                <div class="vault-metric-box">
+                  <span class="metric-box-title">Shannon Entropy</span>
+                  <span class="metric-box-val font-mono text-success" id="vault-res-enc-entropy">7.999 / 8.0</span>
+                </div>
+                <div class="vault-metric-box">
+                  <span class="metric-box-title">Execution Benchmark</span>
+                  <span class="metric-box-val font-mono" id="vault-res-enc-time">-- ms</span>
+                  <span class="metric-box-sub" id="vault-res-enc-throughput">-- MB/s</span>
+                </div>
+              </div>
+
+              <div class="result-container-explainer">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                <p>The encrypted package encapsulates the binary ciphertext, original filename, MIME type, IV, 128-bit GHASH authentication tag, and plaintext SHA-256 reference for bit-exact recovery verification.</p>
+              </div>
+
+              <div class="result-actions-row">
+                <button class="btn btn-download-primary" id="btn-vault-download-enc">
+                  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                  <span id="btn-vault-download-enc-label">Download Encrypted File (.enc)</span>
+                </button>
+                <button class="btn btn-transfer-secondary" id="btn-vault-transfer-to-decrypt" title="Load this encrypted package into the Decrypt Vault to test recovery immediately">
+                  <span>Test in Decryption Vault</span>
+                  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- SUBVIEW 2: DECRYPT & RECOVER ANY FILE -->
+      <div class="vault-subview hidden" id="vault-subview-decrypt">
+        <div class="vault-dual-layout">
+
+          <!-- Left Column: Encrypted Package Ingestion -->
+          <div class="vault-card-col">
+            <!-- Dropzone -->
+            <div class="vault-dropzone" id="vault-decrypt-dropzone">
+              <input type="file" id="vault-decrypt-input" class="vault-file-hidden" accept=".enc,*/*">
+              <div class="dropzone-content">
+                <div class="dropzone-icon-ring ring-decrypt">
+                  <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                    <path d="M7 11V7a5 5 0 0 1 9.9-1"></path>
+                    <polyline points="17 8 12 3 7 8"></polyline>
+                  </svg>
+                </div>
+                <h3 class="dropzone-title">Drop Encrypted (.enc) File Here</h3>
+                <p class="dropzone-sub">or <span class="dropzone-link">click to browse</span> from your device</p>
+                <div class="dropzone-tags">
+                  <span class="drop-tag">.enc package</span>
+                  <span class="drop-tag">AES-GCM / ECB</span>
+                  <span class="drop-tag">Automatic Header Parse</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Inspected Package Header Card -->
+            <div class="vault-meta-card hidden" id="vault-dec-package-card">
+              <div class="meta-card-head">
+                <div class="file-icon-badge" id="vault-dec-pkg-badge">📦</div>
+                <div class="file-name-info">
+                  <h4 class="vault-file-title" id="vault-dec-pkg-filename">encrypted_file.enc</h4>
+                  <span class="vault-file-sub" id="vault-dec-pkg-meta">0 KB • AESENC Container</span>
+                </div>
+                <button class="tool-btn-sm" id="btn-vault-clear-dec" title="Remove loaded package">✕ Clear</button>
+              </div>
+
+              <div class="meta-card-body">
+                <div class="meta-data-row">
+                  <span class="meta-row-label">Embedded Target File:</span>
+                  <span class="meta-row-val font-mono text-bright" id="vault-dec-orig-filename">--</span>
+                </div>
+                <div class="meta-data-row">
+                  <span class="meta-row-label">Original MIME Type:</span>
+                  <span class="meta-row-val font-mono" id="vault-dec-orig-mime">--</span>
+                </div>
+                <div class="meta-data-row">
+                  <span class="meta-row-label">Original File Size:</span>
+                  <span class="meta-row-val font-mono" id="vault-dec-orig-size">--</span>
+                </div>
+                <div class="meta-data-row">
+                  <span class="meta-row-label">Cipher Mode:</span>
+                  <span class="meta-row-val font-mono text-success" id="vault-dec-orig-mode">--</span>
+                </div>
+                <div class="meta-data-row">
+                  <span class="meta-row-label">Stored Reference SHA-256:</span>
+                  <span class="meta-row-val font-mono" id="vault-dec-orig-sha">--</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Column: Decryption Parameters & Recovered Output -->
+          <div class="vault-card-col">
+            <!-- Decryption Parameters -->
+            <div class="vault-config-card">
+              <div class="card-section-head">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path></svg>
+                <h3>Decryption & Verification Parameters</h3>
+              </div>
+
+              <div class="vault-form-grid">
+                <!-- AES Decryption Key Input -->
+                <div class="vault-form-group">
+                  <label class="param-label" for="vault-dec-key-hex">
+                    <span>AES-128 DECRYPTION KEY (HEX)</span>
+                    <span class="param-meta">MUST MATCH ENCRYPTION KEY</span>
+                  </label>
+                  <div class="param-input-group">
+                    <input type="text" id="vault-dec-key-hex" class="hex-input font-mono" value="2b7e151628aed2a6abf7158809cf4f3c" maxlength="32" spellcheck="false">
+                    <button class="tool-btn icon-btn" id="btn-vault-dec-sync-key" title="Sync Key with Encrypt Tab">
+                      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Decrypt Action Trigger -->
+              <div class="vault-action-row">
+                <button class="btn btn-execute-primary btn-vault-primary" id="btn-vault-do-decrypt" disabled>
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path></svg>
+                  <span>DECRYPT & VERIFY INTEGRITY</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Decryption Verification & Restored Output Console (Hidden until decrypted) -->
+            <div class="vault-result-card hidden" id="vault-dec-result-card">
+              <div class="result-card-head">
+                <div class="result-badge-success" id="vault-dec-status-badge">
+                  <span class="result-dot"></span>
+                  <span id="vault-dec-verdict-title">100% BIT-PERFECT RESTORATION VERIFIED</span>
+                </div>
+                <span class="result-type-tag badge-match" id="vault-dec-auth-tag">GCM AUTH PASS</span>
+              </div>
+
+              <!-- SHA-256 Digest Verification Matrix -->
+              <div class="hash-matrix-card vault-hash-card">
+                <h4 class="card-subtitle">Bit-Exact Cryptographic Hash Comparison</h4>
+                <div class="hash-rows-list">
+                  <div class="hash-row">
+                    <span class="hash-label">Reference Original:</span>
+                    <span class="hash-hex font-mono" id="vault-dec-sha-orig">--</span>
+                    <span class="hash-badge">ORIGINAL REFERENCE</span>
+                  </div>
+                  <div class="hash-row">
+                    <span class="hash-label">Recovered Plaintext:</span>
+                    <span class="hash-hex font-mono text-success" id="vault-dec-sha-dec">--</span>
+                    <span class="hash-badge badge-match" id="vault-dec-sha-badge">MATCH (100%)</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="result-card-metrics">
+                <div class="vault-metric-box">
+                  <span class="metric-box-title">Restored File</span>
+                  <span class="metric-box-val font-mono text-bright" id="vault-res-dec-filename">--</span>
+                </div>
+                <div class="vault-metric-box">
+                  <span class="metric-box-title">Restored Size</span>
+                  <span class="metric-box-val font-mono" id="vault-res-dec-size">-- KB</span>
+                </div>
+                <div class="vault-metric-box">
+                  <span class="metric-box-title">Byte Differential</span>
+                  <span class="metric-box-val font-mono text-success" id="vault-res-dec-diff">0 Byte Mismatch (0.000%)</span>
+                </div>
+                <div class="vault-metric-box">
+                  <span class="metric-box-title">Execution Benchmark</span>
+                  <span class="metric-box-val font-mono" id="vault-res-dec-time">-- ms</span>
+                  <span class="metric-box-sub" id="vault-res-dec-throughput">-- MB/s</span>
+                </div>
+              </div>
+
+              <div class="result-actions-row">
+                <button class="btn btn-download-primary" id="btn-vault-download-dec">
+                  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                  <span id="btn-vault-download-dec-label">Download Restored File</span>
+                </button>
+              </div>
+
+              <!-- Live Content Preview Window -->
+              <div class="vault-preview-card" id="vault-dec-preview-card">
+                <div class="preview-head">
+                  <span class="preview-title">Restored Content Preview</span>
+                  <span class="preview-type-badge" id="vault-dec-preview-type">TXT</span>
+                </div>
+                <div class="preview-content-box" id="vault-dec-preview-content">
+                  <!-- Injected preview -->
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+    <!-- /VIEW 2: UNIVERSAL FILE ENCRYPTION & DECRYPTION VAULT -->
     <div class="modal-backdrop hidden" id="modal-specs">
       <div class="modal-window">
         <div class="modal-header">
